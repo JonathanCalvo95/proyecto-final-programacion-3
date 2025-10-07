@@ -3,7 +3,7 @@ import { useForm, type SubmitHandler } from 'react-hook-form';
 import { TextField, Button, Container, Box, Typography } from '@mui/material';
 
 interface ILoginFormData {
-  email: string;
+  username: string;
   password: string;
 }
 
@@ -26,41 +26,17 @@ const Login: React.FC = () => {
         }}
       >
         <Typography component="h1" variant="h5">
-          Sign In
+          Iniciar sesion
         </Typography>
         <Box component="form" onSubmit={handleSubmit(onSubmit)} noValidate sx={{ mt: 1 }}>
-          <TextField
-            margin="normal"
-            required
-            fullWidth
-            id="email"
-            label="Email Address"
-            autoComplete="email"
-            autoFocus
-            {...register('email', { required: 'Email is required' })}
-            error={!!errors.email}
-            helperText={errors.email?.message}
-          />
-          <TextField
-            margin="normal"
-            required
-            fullWidth
-            id="password"
-            label="Password"
-            type="password"
-            autoComplete="current-password"
-            {...register('password', { required: 'Password is required' })}
-            error={!!errors.password}
-            helperText={errors.password?.message}
-          />
-          <Button
-            type="submit"
-            fullWidth
-            variant="contained"
-            sx={{ mt: 3, mb: 2 }}
-          >
-            Sign In
-          </Button>
+          
+          <TextField margin="normal" required fullWidth id="username" label="Nombre de usuario" autoComplete="username" autoFocus
+            {...register('username', { required: 'El nombre de usuario es requerido' })} error={!!errors.username} helperText={errors.username?.message} />
+          
+          <TextField margin="normal" required fullWidth id="password" label="Contraseña" type="password" autoComplete="current-password" 
+          {...register('password', { required: 'La contraseña es requerida' })} error={!!errors.password} helperText={errors.password?.message} />
+            
+          <Button type="submit" fullWidth variant="contained" sx={{ mt: 3, mb: 2 }} > Ingresar </Button>
         </Box>
       </Box>
     </Container>
