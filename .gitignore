@@ -137,3 +137,39 @@ dist
 # Vite logs files
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
+
+# Backend
+back/dist/
+back/logs/
+back/coverage/
+back/*.tsbuildinfo
+
+# Frontend
+front/dist/
+front/.vite/
+front/coverage/
+front/*.tsbuildinfo
+
+# Subproject dependencies (redundant but explicit)
+back/node_modules/
+front/node_modules/
+
+# Local env overrides
+back/.env.local
+front/.env.local
+
+# OS / Editor
+.DS_Store
+Thumbs.db
+.vscode/
+*.swp
+
+# Root lock (usar locks por subproyecto)
+package-lock.json
+
+# Docker / runtime overrides
+docker-compose.override.yml
+*.env.docker
+
+# Misc cache
+*.log.*
