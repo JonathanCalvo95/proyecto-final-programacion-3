@@ -31,13 +31,13 @@ export default function Spaces() {
     })()
   }, [])
 
-  async function reserve(spaceId: string) {
+  async function book(spaceId: string) {
     if (!start || !end) {
       alert('Seleccione rango')
       return
     }
     try {
-      await api.post('/reservations', {
+      await api.post('/bookings', {
         spaceId,
         start: start.toISOString(),
         end: end.toISOString(),
@@ -95,7 +95,7 @@ export default function Spaces() {
               </Typography>
               <Typography>Capacidad: {s.capacity}</Typography>
               <Typography>Amenidades: {asArray(s.amenities).join(', ') || '-'}</Typography>
-              <Button sx={{ mt: 1 }} variant="contained" onClick={() => reserve(s._id)}>
+              <Button sx={{ mt: 1 }} variant="contained" onClick={() => book(s._id)}>
                 Reservar
               </Button>
             </CardContent>

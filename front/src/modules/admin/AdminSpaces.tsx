@@ -77,7 +77,7 @@ export default function AdminSpaces() {
       </Button>
       <Grid container spacing={2}>
         {data.map((s) => (
-          <Grid item xs={12} md={6} key={s._id}>
+          <Grid size={{ xs: 12, md: 6 }} key={s._id}>
             <Paper sx={{ p: 2 }}>
               <Typography variant="h6">{s.title}</Typography>
               <Typography variant="caption">{s.type}</Typography>

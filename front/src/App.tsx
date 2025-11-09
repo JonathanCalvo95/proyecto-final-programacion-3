@@ -4,7 +4,7 @@ import { Box, Container } from '@mui/material'
 import NavBar from './modules/layout/NavBar'
 import Register from './modules/auth/Register'
 import Spaces from './modules/spaces/Spaces'
-import MyReservations from './modules/reservations/MyReservations'
+import MyBookings from './modules/bookings/MyBookings'
 import AdminDashboard from './modules/admin/AdminDashboard'
 import AdminSpaces from './modules/admin/AdminSpaces'
 import { useAuth } from './context/AuthContext'
@@ -35,7 +35,7 @@ export default function App() {
               path="/my"
               element={
                 <PrivateRoute>
-                  <MyReservations />
+                  <MyBookings />
                 </PrivateRoute>
               }
             />

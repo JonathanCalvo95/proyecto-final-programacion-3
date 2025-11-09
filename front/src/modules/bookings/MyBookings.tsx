@@ -15,23 +15,23 @@ import {
 import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker'
 import dayjs from 'dayjs'
 import api from '../../services/api'
-import type { Reservation } from '../../types'
+import type { Booking } from '../../types'
 
-export default function MyReservations() {
-  const [data, setData] = useState<Reservation[]>([])
+export default function MyBookings() {
+  const [data, setData] = useState<Booking[]>([])
   const [open, setOpen] = useState(false)
-  const [current, setCurrent] = useState<Reservation | null>(null)
+  const [current, setCurrent] = useState<Booking | null>(null)
   const [start, setStart] = useState<dayjs.Dayjs | null>(null)
   const [end, setEnd] = useState<dayjs.Dayjs | null>(null)
 
-  const load = () => api.get('/reservations/my').then((r) => setData(r.data))
+  const load = () => api.get('/bookings/my').then((r) => setData(r.data))
   useEffect(() => {
     load()
   }, [])
 
   async function cancel(id: string) {
     try {
-      await api.patch(`/reservations/${id}/cancel`)
+      await api.patch(`/bookings/${id}/cancel`)
       load()
     } catch (e: any) {
       alert(e?.response?.data?.message || 'Error al cancelar')
@@ -40,7 +40,7 @@ export default function MyReservations() {
   async function reschedule() {
     if (!current || !start || !end) return
     try {
-      await api.patch(`/reservations/${current._id}/reschedule`, {
+      await api.patch(`/bookings/${current._id}/reschedule`, {
         start: start.toISOString(),
         end: end.toISOString(),
       })

@@ -11,25 +11,25 @@ export default function AdminDashboard() {
   }, [])
   return (
     <Grid container spacing={2}>
-      <Grid item xs={12} md={4}>
+      <Grid size={{ xs: 12, md: 4 }}>
         <Paper sx={{ p: 2 }}>
           <Typography variant="subtitle2">Espacios</Typography>
           <Typography variant="h4">{metrics.totalSpaces || 0}</Typography>
         </Paper>
       </Grid>
-      <Grid item xs={12} md={4}>
+      <Grid size={{ xs: 12, md: 4 }}>
         <Paper sx={{ p: 2 }}>
           <Typography variant="subtitle2">Reservas activas</Typography>
-          <Typography variant="h4">{metrics.totalReservations || 0}</Typography>
+          <Typography variant="h4">{metrics.totalBookings || 0}</Typography>
         </Paper>
       </Grid>
-      <Grid item xs={12} md={4}>
+      <Grid size={{ xs: 12, md: 4 }}>
         <Paper sx={{ p: 2 }}>
           <Typography variant="subtitle2">Ocupación (30d)</Typography>
           <Typography variant="h4">{Math.round((metrics.occupancyRate || 0) * 100)}%</Typography>
         </Paper>
       </Grid>
-      <Grid item xs={12}>
+      <Grid size={{ xs: 12 }}>
         <Paper sx={{ p: 2 }}>
           <Typography variant="h6" gutterBottom>
             Top espacios
