@@ -1,15 +1,14 @@
 import express from "express";
-import authRoutes from "./routes/auth";
-import userRoutes from "./routes/user";
-import { spaceRouter } from "./routes/space";
-import bookingsRoutes from "./routes/booking";
+import cors from "cors";
+import routes from "./routes";
+import { errorHandler } from "./middlewares/error";
 
 const app = express();
+app.use(cors());
 app.use(express.json());
 
-app.use("/api/auth", authRoutes);
-app.use("/api/users", userRoutes);
-app.use("/api/spaces", spaceRouter);
-app.use("/api/bookings", bookingsRoutes);
+app.use("/api", routes);
+
+app.use(errorHandler);
 
 export default app;

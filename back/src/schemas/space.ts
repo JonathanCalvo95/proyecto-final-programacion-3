@@ -14,7 +14,7 @@ export interface ISpace extends Document {
   updatedAt: Date;
 }
 
-const SpaceSchema = new Schema<ISpace>(
+const schema = new Schema<ISpace>(
   {
     title: { type: String, required: true, trim: true },
     description: { type: String },
@@ -38,5 +38,8 @@ const SpaceSchema = new Schema<ISpace>(
   { timestamps: true }
 );
 
-export const SpaceModel: Model<ISpace> =
-  (models.Space as Model<ISpace>) || model<ISpace>("Space", SpaceSchema);
+const SpaceModel: Model<ISpace> =
+  (models.Space as Model<ISpace>) || model<ISpace>("Space", schema);
+
+export default SpaceModel;
+export { SpaceModel };

@@ -1,11 +1,15 @@
 import { Document, Types } from "mongoose";
 
-// User Types
+/* ===== User / Roles ===== */
+export type UserRole = "admin" | "client";
+
+export type GovernmentIdType = "cuil" | "cuit" | "dni" | "lc" | "le" | "pas";
+
 export interface IUser extends Document {
   _id: Types.ObjectId;
   email: string;
   password: string;
-  role: Types.ObjectId;
+  role: UserRole; // ← string (no ObjectId)
   firstName: string;
   lastName: string;
   phone?: string;
@@ -17,28 +21,17 @@ export interface IUser extends Document {
   ): Promise<{ isOk: boolean; isLocked: boolean }>;
 }
 
-export type GovernmentIdType = "cuil" | "cuit" | "dni" | "lc" | "le" | "pas";
-
-// Role Types
-export interface IRole extends Document {
-  _id: Types.ObjectId;
-  name: string;
-  description?: string;
-  permissions: string[];
-  isActive: boolean;
-}
-
-// JWT Payload
+/* ===== JWT ===== */
 export interface JWTPayload {
   _id: string;
   email: string;
-  role: string;
+  role: UserRole;
   iat?: number;
   exp?: number;
   iss?: string;
 }
 
-// Request Extensions - using module augmentation instead of namespace
+/* ===== Express Request Augmentation ===== */
 declare module "express-serve-static-core" {
   interface Request {
     user?: JWTPayload;
@@ -47,7 +40,7 @@ declare module "express-serve-static-core" {
   }
 }
 
-// API Response Types
+/* ===== API helpers ===== */
 export interface ApiResponse<T = unknown> {
   success: boolean;
   data?: T;
@@ -55,7 +48,6 @@ export interface ApiResponse<T = unknown> {
   error?: string;
 }
 
-// Auth Request Types
 export interface LoginRequest {
   email: string;
   password: string;
@@ -64,7 +56,7 @@ export interface LoginRequest {
 export interface CreateUserRequest {
   email: string;
   password: string;
-  role: string;
+  role: UserRole;
   firstName: string;
   lastName: string;
   phone?: string;
@@ -72,12 +64,11 @@ export interface CreateUserRequest {
   bornDate?: Date;
 }
 
-// Environment Variables
+/* ===== Environment vars ===== */
 export interface EnvironmentVariables {
   NODE_ENV?: string;
   PORT?: string;
-  MONGO_URL?: string;
-  MONGO_DB?: string;
+  MONGODB_URI?: string; // ← alinea con tu .env actual
   JWT_SECRET?: string;
   JWT_ISSUER?: string;
 }

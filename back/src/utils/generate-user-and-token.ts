@@ -1,13 +1,10 @@
 import jwt from "jsonwebtoken";
-// import fs from 'fs'
-// import path from 'path'
-
-import Role from "../schemas/role";
 import { IUser, JWTPayload } from "../types/index";
+import { UserRole } from "../enums";
 
 interface UserResponse {
   _id: string;
-  role: string;
+  role: UserRole;
   email: string;
   firstName: string;
   lastName: string;
@@ -19,42 +16,29 @@ interface TokenResponse {
 }
 
 async function generateUserToken(
-  req: unknown,
+  _req: unknown,
   user: IUser
 ): Promise<TokenResponse> {
-  const role = await Role.findById(user.role).exec();
-
-  if (!role) {
-    throw new Error("Role not found");
-  }
-
   const payload: JWTPayload = {
     _id: user._id.toString(),
     email: user.email,
-    role: role.name,
+    role: user.role,
   };
 
   const userResponse: UserResponse = {
     _id: user._id.toString(),
-    role: role.name,
+    role: user.role,
     email: user.email,
     firstName: user.firstName,
     lastName: user.lastName,
   };
 
-  // const privateKey = fs.readFileSync(path.join(__dirname, `../keys/base-api-express-generator.pem`))
+  const secret = process.env.JWT_SECRET || "base-api-express-generator";
 
-  // Unsecure alternative
-  const token = jwt.sign(payload, "base-api-express-generator", {
+  const token = jwt.sign(payload, secret, {
     subject: user._id.toString(),
-    issuer: "base-api-express-generator",
+    issuer: process.env.JWT_ISSUER || "base-api-express-generator",
   });
-
-  // const token = jwt.sign(payload, privateKey, {
-  //   subject: user._id.toString(),
-  //   issuer: 'base-api-express-generator',
-  //   algorithm: 'RS256',
-  // })
 
   return { token, user: userResponse };
 }

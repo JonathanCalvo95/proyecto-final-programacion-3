@@ -1,27 +1,32 @@
 import express, { Request, Response, NextFunction } from "express";
 import bcrypt from "bcrypt";
-
 import User from "../schemas/user";
-import Role from "../schemas/role";
-import { CreateUserRequest } from "../types/index";
+import { CreateUserRequest, UserRole } from "../types/index";
+import { USER_ROLES } from "../enums/role";
 import authentication from "../middlewares/authentication";
 
 const router = express.Router();
 
-function isAdmin(req: Request): boolean {
-  return (req.user as any)?.role === "admin";
+function reqUser(req: Request) {
+  return req.user as { _id?: string; role?: UserRole } | undefined;
 }
+
+function isAdmin(req: Request): boolean {
+  return reqUser(req)?.role === "admin";
+}
+
 function ensureAdmin(req: Request, res: Response, next: NextFunction) {
   if (isAdmin(req)) return next();
   res.status(403).send("Unauthorized");
 }
+
 function ensureSelfOrAdmin(
   req: Request<{ id: string }>,
   res: Response,
   next: NextFunction
 ) {
-  const self = req.params.id === (req.user as any)?._id;
-  if (self || isAdmin(req)) return next();
+  const u = reqUser(req);
+  if (u?.role === "admin" || (u?._id && req.params.id === u._id)) return next();
   res.status(403).send("Unauthorized");
 }
 
@@ -33,24 +38,23 @@ router.delete("/:id", authentication, ensureAdmin, deleteUser);
 
 function toDate(input: string): Date {
   const parts = input.split("/");
-  if (parts.length !== 3) {
+  if (parts.length !== 3)
     throw new Error("Invalid date format. Expected DD/MM/YYYY");
-  }
   const [day, month, year] = parts;
-  if (!day || !month || !year) {
-    throw new Error("Invalid date format. Expected DD/MM/YYYY");
-  }
-  return new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+  return new Date(
+    parseInt(year, 10),
+    parseInt(month, 10) - 1,
+    parseInt(day, 10)
+  );
 }
 
 async function getAllUsers(
-  req: Request,
+  _req: Request,
   res: Response,
   next: NextFunction
 ): Promise<void> {
-  console.log("getAllUsers by user ", (req.user as any)?._id);
   try {
-    const users = await User.find({ isActive: true }).populate("role");
+    const users = await User.find({ isActive: true }).lean();
     res.send(users);
   } catch (err) {
     next(err);
@@ -62,21 +66,12 @@ async function getUserById(
   res: Response,
   next: NextFunction
 ): Promise<void> {
-  console.log("getUser with id: ", req.params.id);
-
-  if (!req.params.id) {
-    res.status(500).send("The param id is not defined");
-    return;
-  }
-
   try {
-    const user = await User.findById(req.params.id).populate("role");
-
+    const user = await User.findById(req.params.id).lean();
     if (!user) {
       res.status(404).send("User not found");
       return;
     }
-
     res.send(user);
   } catch (err) {
     next(err);
@@ -88,35 +83,30 @@ async function createUser(
   res: Response,
   next: NextFunction
 ): Promise<void> {
-  console.log("createUser: ", req.body);
-
-  const user = req.body;
-
   try {
-    if (!user.email || !user.password || !user.role) {
+    const body = req.body;
+    if (!body.email || !body.password || !body.role) {
       res.status(400).send("Missing required fields: email, password, role");
       return;
     }
+    if (!USER_ROLES.includes(body.role as UserRole)) {
+      res.status(400).send("Invalid role");
+      return;
+    }
 
-    const emailExists = await User.findOne({ email: user.email });
+    const emailExists = await User.findOne({ email: body.email }).lean();
     if (emailExists) {
       res.status(409).send("Email already registered");
       return;
     }
 
-    const role = await Role.findOne({ name: user.role });
-    if (!role) {
-      res.status(404).send("Role not found");
-      return;
-    }
-
-    const passEncrypted = await bcrypt.hash(user.password, 10);
+    const passEncrypted = await bcrypt.hash(body.password, 10);
 
     const userCreated = await User.create({
-      ...user,
-      bornDate: user.bornDate ? toDate(user.bornDate.toString()) : undefined,
+      ...body,
+      bornDate: body.bornDate ? toDate(body.bornDate.toString()) : undefined,
       password: passEncrypted,
-      role: role._id,
+      role: body.role as UserRole,
     });
 
     res.status(201).send(userCreated);
@@ -130,50 +120,46 @@ async function updateUser(
   res: Response,
   next: NextFunction
 ): Promise<void> {
-  console.log("updateUser with id: ", req.params.id);
-
-  if (!req.params.id) {
-    res.status(404).send("Parameter id not found");
-    return;
-  }
-
-  const isUserAdmin = isAdmin(req);
-  if (!isUserAdmin && req.params.id !== (req.user as any)?._id) {
-    res.status(403).send("Unauthorized");
-    return;
-  }
-
-  // The email can't be updated
-  delete (req.body as any).email;
-
   try {
-    const userToUpdate = await User.findById(req.params.id);
+    if (!req.params.id) {
+      res.status(404).send("Parameter id not found");
+      return;
+    }
 
+    const requester = reqUser(req);
+    if (!(requester?.role === "admin" || requester?._id === req.params.id)) {
+      res.status(403).send("Unauthorized");
+      return;
+    }
+
+    const userToUpdate = await User.findById(req.params.id);
     if (!userToUpdate) {
-      console.error("User not found");
       res.status(404).send("User not found");
       return;
     }
 
-    if (req.body.role) {
-      const newRole =
-        (await Role.findById(req.body.role)) ||
-        (await Role.findOne({ name: req.body.role as any }));
-      if (!newRole) {
-        console.info("New role not found. Sending 400 to client");
-        res.status(400).end();
+    const update: Partial<CreateUserRequest> = { ...req.body };
+
+    delete (update as any).email;
+
+    if (update.role) {
+      if (!USER_ROLES.includes(update.role as UserRole)) {
+        res.status(400).send("Invalid role");
         return;
       }
-      (req.body as any).role = newRole._id.toString();
     }
 
-    if (req.body.password) {
-      const passEncrypted = await bcrypt.hash(req.body.password, 10);
-      req.body.password = passEncrypted;
+    if (update.password) {
+      update.password = await bcrypt.hash(update.password, 10);
     }
 
-    await userToUpdate.updateOne(req.body);
-    res.send(userToUpdate);
+    if (update.bornDate) {
+      update.bornDate = toDate(update.bornDate.toString());
+    }
+
+    await userToUpdate.updateOne(update);
+    const fresh = await User.findById(req.params.id).lean();
+    res.send(fresh);
   } catch (err) {
     next(err);
   }
@@ -184,24 +170,20 @@ async function deleteUser(
   res: Response,
   next: NextFunction
 ): Promise<void> {
-  console.log("deleteUser with id: ", req.params.id);
-
-  if (!req.params.id) {
-    res.status(500).send("The param id is not defined");
-    return;
-  }
-
   try {
-    const user = await User.findById(req.params.id);
+    if (!req.params.id) {
+      res.status(500).send("The param id is not defined");
+      return;
+    }
 
+    const user = await User.findById(req.params.id);
     if (!user) {
       res.status(404).send("User not found");
       return;
     }
 
     await User.deleteOne({ _id: user._id });
-
-    res.send(`User deleted :  ${req.params.id}`);
+    res.send(`User deleted : ${req.params.id}`);
   } catch (err) {
     next(err);
   }

@@ -1,8 +1,12 @@
 import { Schema, model, Document, Types } from "mongoose";
-import { PAYMENT_STATUSES, PaymentStatus } from "../enums/payment";
+import {
+  PAYMENT_STATUS,
+  PAYMENT_STATUSES,
+  PaymentStatus,
+} from "../enums/payment";
 
 export interface IPayment extends Document {
-  reservation: Types.ObjectId;
+  booking: Types.ObjectId;
   amount: number;
   currency: string;
   status: PaymentStatus;
@@ -12,10 +16,20 @@ export interface IPayment extends Document {
 
 const paymentSchema = new Schema<IPayment>(
   {
-    reservation: { type: Schema.Types.ObjectId, ref: "Reservation", required: true, index: true },
+    booking: {
+      type: Schema.Types.ObjectId,
+      ref: "Booking",
+      required: true,
+      index: true,
+    },
     amount: { type: Number, required: true, min: 0 },
     currency: { type: String, default: "USD" },
-    status: { type: String, enum: PAYMENT_STATUSES, default: "pending", index: true }
+    status: {
+      type: String,
+      enum: PAYMENT_STATUSES,
+      default: PAYMENT_STATUS.PENDING,
+      index: true,
+    },
   },
   { timestamps: true }
 );

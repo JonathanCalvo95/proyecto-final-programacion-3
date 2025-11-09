@@ -1,13 +1,6 @@
-import {
-  Schema,
-  model,
-  Document,
-  Types,
-  HydratedDocument,
-  Model,
-  models,
-} from "mongoose";
+import { Schema, model, Document, Types, HydratedDocument } from "mongoose";
 import bcrypt from "bcrypt";
+import { USER_ROLE, USER_ROLES, UserRole } from "../enums/role";
 
 export interface IUser extends Document {
   id: Types.ObjectId;
@@ -17,13 +10,13 @@ export interface IUser extends Document {
   lastName?: string;
   phone?: string;
   bornDate?: Date;
-  role: Types.ObjectId;
+  role: UserRole;
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
 
-const UserSchema = new Schema<IUser>(
+const schema = new Schema<IUser>(
   {
     email: {
       type: String,
@@ -39,10 +32,11 @@ const UserSchema = new Schema<IUser>(
     phone: { type: String, trim: true },
     bornDate: { type: Date },
     role: {
-      type: Schema.Types.ObjectId,
-      ref: "Role",
+      type: String,
+      enum: USER_ROLES,
       required: true,
       index: true,
+      default: USER_ROLE.CLIENT,
     },
     isActive: { type: Boolean, default: true, index: true },
   },
@@ -61,17 +55,15 @@ const UserSchema = new Schema<IUser>(
   }
 );
 
-UserSchema.pre("save", async function (next) {
+schema.pre("save", async function (next) {
   const self = this as HydratedDocument<IUser>;
   if (!self.isModified("password")) return next();
   self.password = await bcrypt.hash(self.password, 10);
   next();
 });
 
-UserSchema.methods.comparePassword = function (plain: string) {
+schema.methods.comparePassword = function (plain: string) {
   return bcrypt.compare(plain, this.password);
 };
 
-export const UserModel: Model<IUser> =
-  (models.User as Model<IUser>) || model<IUser>("User", UserSchema);
-export default model<IUser>("User", UserSchema);
+export default model<IUser>("User", schema);

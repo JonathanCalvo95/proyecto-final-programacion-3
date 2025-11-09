@@ -9,6 +9,8 @@ export interface IBooking {
   end: Date;
   amount: number;
   status: BookingStatus;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 const schema = new Schema<IBooking>(
@@ -21,12 +23,14 @@ const schema = new Schema<IBooking>(
     status: {
       type: String,
       enum: BOOKING_STATUSES,
-      default: "pendiente",
+      default: BOOKING_STATUSES[0],
     },
   },
   { timestamps: true }
 );
 
 schema.index({ space: 1, start: 1, end: 1 });
+schema.index({ user: 1, start: 1 });
+schema.index({ status: 1 });
 
-export const BookingModel = model<IBooking>("Booking", schema);
+export default model<IBooking>("Booking", schema);

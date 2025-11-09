@@ -2,68 +2,94 @@ import { Router } from "express";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
 import User from "../schemas/user";
-import Role from "../schemas/role";
 import { env } from "../config/env";
+import { USER_ROLES } from "../enums/role";
 
 const router = Router();
 
-// Registro de usuario
 router.post("/register", async (req, res) => {
   try {
-    const { name, email, password, role } = req.body;
+    const { name, email, password, role } = req.body as {
+      name?: string;
+      email?: string;
+      password?: string;
+      role?: string;
+    };
+
     if (!name || !email || !password || !role) {
       return res.status(400).json({ error: "Faltan campos requeridos" });
     }
-    const exists = await User.findOne({ email });
-    if (exists)
-      return res.status(409).json({ error: "El email ya está registrado" });
+    if (!USER_ROLES.includes(role as any)) {
+      return res.status(400).json({ error: "Rol inválido" });
+    }
 
-    const roleDoc = await Role.findOne({ name: role });
-    if (!roleDoc) return res.status(404).json({ error: "Rol inválido" });
+    const exists = await User.findOne({ email }).lean();
+    if (exists) {
+      return res.status(409).json({ error: "El email ya está registrado" });
+    }
 
     const hashed = await bcrypt.hash(password, 10);
     const user = await User.create({
       firstName: name,
       email,
       password: hashed,
-      role: roleDoc._id,
+      role, // string ('admin' | 'client')
+      isActive: true,
     });
 
-    res.status(201).json({ message: "Usuario creado", id: user._id });
+    return res.status(201).json({ message: "Usuario creado", id: user._id });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: "Error en el registro" });
+    return res.status(500).json({ error: "Error en el registro" });
   }
 });
 
-// Login
 router.post("/login", async (req, res) => {
   try {
-    const { email, password } = req.body;
-    if (!email || !password)
+    const { email, password } = req.body as {
+      email?: string;
+      password?: string;
+    };
+    if (!email || !password) {
       return res.status(400).json({ error: "Email y password requeridos" });
+    }
 
-    const user = await User.findOne({ email }).populate("role");
-    if (!user) return res.status(401).json({ error: "Credenciales inválidas" });
+    const user = await User.findOne({ email });
+    if (!user || !user.isActive) {
+      return res.status(401).json({ error: "Credenciales inválidas" });
+    }
 
     const valid = await bcrypt.compare(password, user.password);
-    if (!valid)
+    if (!valid) {
       return res.status(401).json({ error: "Credenciales inválidas" });
+    }
 
     const payload = {
-      id: user.id.toString(),
-      role: (user.role as any)?.name || "client",
+      _id: user.id.toString(),
       email: user.email,
+      role: user.role, // string
     };
-    const token = jwt.sign(payload, env.jwtSecret, {
+
+    const secret = env.jwtSecret || "base-api-express-generator";
+    const token = jwt.sign(payload, secret, {
       expiresIn: "7d",
-      issuer: env.jwtIssuer,
+      issuer: env.jwtIssuer || "base-api-express-generator",
+      subject: user.id.toString(),
     });
 
-    res.json({ token, role: payload.role, name: user.firstName || user.email });
+    return res.json({
+      token,
+      user: {
+        _id: user.id.toString(),
+        role: user.role,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+      },
+    });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: "Error en el login" });
+    return res.status(500).json({ error: "Error en el login" });
   }
 });
 

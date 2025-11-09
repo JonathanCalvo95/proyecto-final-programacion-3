@@ -5,4 +5,5 @@ export const logError = (err: unknown) => {
     (err as any)?.stack || err
   )}\n`;
   fs.appendFileSync(process.env.LOG_PATH || "./errors.log", line);
+  console.error("Error registrado:", err);
 };
