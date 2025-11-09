@@ -1,20 +1,20 @@
-# 🏢 Sistema de Gestión de Espacios de Coworking (MERN + TypeScript)
+# Sistema de Gestión de Espacios de Coworking (MERN + TypeScript)
 
 Monorepo que contiene **backend (back)** y **frontend (front)** de un sistema de reservas de espacios de coworking.  
 Proyecto realizado para la materia **Programación 3 - 2025**.
 
 ---
 
-## 🧩 Tecnologías principales
+## Tecnologías principales
 
 - **Backend (back):** Node.js · Express · TypeScript · MongoDB (Mongoose)
-- **Frontend (front):** React · Vite · TypeScript · Ant Design
+- **Frontend (front):** React · Vite · TypeScript · MUI Design
 - **Autenticación:** JWT almacenado en cookie httpOnly
 - **Roles:** administrador y cliente
 
 ---
 
-## ⚙️ Requisitos previos
+## Requisitos previos
 
 - Node.js 18 o superior
 - MongoDB 6 o superior
@@ -22,7 +22,7 @@ Proyecto realizado para la materia **Programación 3 - 2025**.
 
 ---
 
-## 📁 Estructura del proyecto
+## Estructura del proyecto
 
 ```
 .
@@ -30,45 +30,21 @@ Proyecto realizado para la materia **Programación 3 - 2025**.
 └─ front/      → Aplicación web (React + Vite + TypeScript)
 ```
 
-Cada carpeta tiene su propio **README.md** con instrucciones específicas:
-
-- 👉 [back/README.md](back/README.md)
-- 👉 [front/README.md](front/README.md)
-
 ---
 
-## 🧾 Variables de entorno
+## Variables de entorno
 
-1. Copiar los archivos `.env.example` de `back` y `front`.
-2. Renombrarlos a `.env`.
-3. Ajustar los valores según tu entorno.
+Ubicadas en archivo `.env`:
 
----
-
-## 🚀 Instalación de dependencias
-
-En la raíz del proyecto:
-
-```bash
-cd back && npm install
-cd ../front && npm install
-```
+- [back/.env](back/.env)
+- [front/.env](front/.env)
 
 ---
-
-## 🧱 Migración inicial (seed)
-
-Carga datos base (usuarios y espacios).
-
-```bash
-cd back
-npm run seed
-```
 
 **Credenciales iniciales:**
 
 - admin: `admin@cowork.com` / `Admin123!`
-- cliente demo (opcional según seed)
+- cliente: `client@cowork.com` / `Client123!`
 
 ---
 
@@ -80,6 +56,7 @@ Abrir **dos terminales**:
 
 ```bash
 cd back
+npm install
 npm run dev
 ```
 
@@ -87,6 +64,7 @@ npm run dev
 
 ```bash
 cd front
+npm install
 npm run dev
 ```
 
@@ -97,7 +75,34 @@ npm run dev
 
 ---
 
-## 🧮 Funcionalidades principales
+## Endpoints principales (BACK)
+
+| Método | Ruta                       | Descripción             |
+| ------ | -------------------------- | ----------------------- |
+| POST   | `/api/auth/register`       | Crear usuario nuevo     |
+| POST   | `/api/auth/login`          | Login y JWT             |
+| GET    | `/api/users/me`            | Perfil del usuario      |
+| GET    | `/api/spaces`              | Listar espacios activos |
+| POST   | `/api/spaces`              | Crear espacio (admin)   |
+| POST   | `/api/bookings`            | Reservar un espacio     |
+| PATCH  | `/api/bookings/:id/cancel` | Cancelar reserva        |
+| GET    | `/api/admin/metrics`       | Métricas (admin)        |
+
+---
+
+## Rutas principales (FRONT)
+
+| Ruta        | Descripción             |
+| ----------- | ----------------------- |
+| `/login`    | Inicio de sesión        |
+| `/register` | Registro                |
+| `/`         | Listado de espacios     |
+| `/bookings` | Mis reservas            |
+| `/admin`    | Panel de administración |
+
+---
+
+## Funcionalidades principales
 
 - Login y registro con JWT
 - Roles: administrador / cliente
@@ -110,28 +115,13 @@ npm run dev
 
 ---
 
-## 🧰 Modo producción (básico)
+## Migración inicial (seed)
 
-**Backend**
-
-```bash
-cd back
-npm run build
-npm start
-```
-
-**Frontend**
-
-```bash
-cd front
-npm run build
-```
-
-Luego servir el contenido de `front/dist` con un servidor estático o configurar un proxy.
+Se ejecuta al correr la aplicacion si no existen datos en las colecciones.
 
 ---
 
-## 👨‍💻 Autor
+## Autor
 
 **Jonathan Calvo**  
 Proyecto académico - Universidad 2025
