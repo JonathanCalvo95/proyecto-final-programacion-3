@@ -3,7 +3,7 @@ import bcrypt from "bcrypt";
 import { USER_ROLE, USER_ROLES, UserRole } from "../enums/role";
 
 export interface IUser extends Document {
-  id: Types.ObjectId;
+  _id: Types.ObjectId;
   email: string;
   password: string;
   firstName?: string;

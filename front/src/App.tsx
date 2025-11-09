@@ -1,7 +1,7 @@
-import { Routes, Route, Navigate } from 'react-router-dom'
-import Login from './modules/auth/Login'
-import { Box, Container } from '@mui/material'
+import { Routes, Route, Navigate, useLocation, Link as RouterLink } from 'react-router-dom'
+import { Box } from '@mui/material'
 import NavBar from './modules/layout/NavBar'
+import Login from './modules/auth/Login'
 import Register from './modules/auth/Register'
 import Spaces from './modules/spaces/Spaces'
 import MyBookings from './modules/bookings/MyBookings'
@@ -22,43 +22,91 @@ function PrivateRoute({ children }: { children: JSX.Element }) {
 }
 
 export default function App() {
-  return (
-    <div className="App">
-      <Box minHeight="100vh" display="flex" flexDirection="column">
-        <NavBar />
-        <Container sx={{ py: 3, flexGrow: 1 }}>
+  const { user, loading } = useAuth()
+  const location = useLocation()
+  const isAuthRoute = location.pathname === '/login' || location.pathname === '/register'
+  const authenticated = !!user
+
+  if (loading) {
+    return (
+      <Box minHeight="100vh" display="flex" alignItems="center" justifyContent="center">
+        Cargando...
+      </Box>
+    )
+  }
+
+  // Layout para login/register cuando NO hay sesión
+  if (!authenticated && isAuthRoute) {
+    return (
+      <Box
+        minHeight="100vh"
+        display="flex"
+        flexDirection="column"
+        justifyContent="center"
+        alignItems="center"
+        sx={{ background: 'linear-gradient(135deg, #f5f7fa 0%, #e6ecf3 100%)', p: 2 }}
+      >
+        <Box width="100%" maxWidth={420}>
           <Routes>
-            <Route path="/" element={<Spaces />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
-            <Route
-              path="/my"
-              element={
-                <PrivateRoute>
-                  <MyBookings />
-                </PrivateRoute>
-              }
-            />
-            <Route
-              path="/admin"
-              element={
-                <AdminRoute>
-                  <AdminDashboard />
-                </AdminRoute>
-              }
-            />
-            <Route
-              path="/admin/spaces"
-              element={
-                <AdminRoute>
-                  <AdminSpaces />
-                </AdminRoute>
-              }
-            />
-            <Route path="*" element={<Navigate to="/" />} />
+            <Route path="*" element={<Navigate to="/login" replace />} />
           </Routes>
-        </Container>
+        </Box>
       </Box>
-    </div>
+    )
+  }
+
+  // Layout autenticado
+  return (
+    <Box minHeight="100vh" display="flex" flexDirection="column">
+      {authenticated && !isAuthRoute && <NavBar />}
+      <Box component="main" flexGrow={1} sx={{ p: 3, backgroundColor: '#fafafa' }}>
+        <Routes>
+          {/* Mostrar Dashboard si el usuario es admin, sino Spaces */}
+          <Route
+            path="/"
+            element={
+              authenticated ? (
+                user?.role === 'admin' ? (
+                  <AdminDashboard />
+                ) : (
+                  <Spaces />
+                )
+              ) : (
+                <Navigate to="/login" replace />
+              )
+            }
+          />
+          <Route path="/login" element={<Navigate to={authenticated ? '/' : '/login'} replace />} />
+          <Route path="/register" element={<Navigate to={authenticated ? '/' : '/register'} replace />} />
+          <Route
+            path="/my"
+            element={
+              <PrivateRoute>
+                <MyBookings />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/admin"
+            element={
+              <AdminRoute>
+                <AdminDashboard />
+              </AdminRoute>
+            }
+          />
+          <Route
+            path="/admin/spaces"
+            element={
+              <AdminRoute>
+                <AdminSpaces />
+              </AdminRoute>
+            }
+          />
+          <Route path="*" element={<Navigate to={authenticated ? '/' : '/login'} replace />} />
+        </Routes>
+      </Box>
+    </Box>
   )
 }

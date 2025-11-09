@@ -1,7 +1,7 @@
 declare namespace Express {
   interface UserJwt {
     id: string;
-    role: "admin" | "client";
+    role: UserRole;
     email: string;
   }
   interface Request {

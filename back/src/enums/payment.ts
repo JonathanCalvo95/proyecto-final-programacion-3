@@ -4,7 +4,6 @@ export const PAYMENT_STATUSES = [
   "failed",
   "refunded",
 ] as const;
-
 export type PaymentStatus = (typeof PAYMENT_STATUSES)[number];
 
 export const PAYMENT_STATUS = {
@@ -12,4 +11,7 @@ export const PAYMENT_STATUS = {
   PAID: "paid",
   FAILED: "failed",
   REFUNDED: "refunded",
-} as const;
+} as const satisfies Record<
+  "PENDING" | "PAID" | "FAILED" | "REFUNDED",
+  PaymentStatus
+>;

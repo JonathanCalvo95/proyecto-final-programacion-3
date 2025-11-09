@@ -1,4 +1,4 @@
-import React, { Suspense } from 'react'
+import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import { LocalizationProvider } from '@mui/x-date-pickers'
@@ -24,9 +24,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
         <BrowserRouter>
           <AuthProvider>
             <LocalizationProvider dateAdapter={AdapterDayjs}>
-              <Suspense fallback={<div style={{ padding: 24 }}>Cargando…</div>}>
-                <App />
-              </Suspense>
+              <App />
             </LocalizationProvider>
           </AuthProvider>
         </BrowserRouter>
