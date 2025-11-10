@@ -9,9 +9,10 @@ export async function seedBookingsIfEmpty(): Promise<number> {
   const existing = await Booking.countDocuments();
   if (existing > 0) return 0;
 
-  const clientId = (await User.findOne({ role: USER_ROLE.CLIENT }))?.id;
+  const clients = await User.find({ role: USER_ROLE.CLIENT });
+  if (clients.length === 0) return 0;
 
-  const spaces = await SpaceModel.find().limit(3);
+  const spaces = await SpaceModel.find();
   if (spaces.length === 0) return 0;
 
   const buildDate = (daysAhead: number, hour: number) => {
@@ -31,23 +32,33 @@ export async function seedBookingsIfEmpty(): Promise<number> {
     amount: number;
   }[] = [];
 
-  for (const sp of spaces) {
-    payload.push({
-      user: clientId,
-      space: sp._id as Types.ObjectId,
-      start: buildDate(1, 9),
-      end: buildDate(1, 11),
-      status: BOOKING_STATUS.CONFIRMED,
-      amount: (sp.hourlyRate || 10) * 2,
-    });
-    payload.push({
-      user: clientId,
-      space: sp._id as Types.ObjectId,
-      start: buildDate(2, 14),
-      end: buildDate(2, 16),
-      status: BOOKING_STATUS.CANCELED,
-      amount: (sp.hourlyRate || 10) * 2,
-    });
+  for (const client of clients) {
+    for (const sp of spaces) {
+      payload.push({
+        user: client._id as Types.ObjectId,
+        space: sp._id as Types.ObjectId,
+        start: buildDate(1, 9),
+        end: buildDate(1, 11),
+        status: BOOKING_STATUS.CONFIRMED,
+        amount: (sp.hourlyRate || 10) * 2,
+      });
+      payload.push({
+        user: client._id as Types.ObjectId,
+        space: sp._id as Types.ObjectId,
+        start: buildDate(2, 14),
+        end: buildDate(2, 16),
+        status: BOOKING_STATUS.CANCELED,
+        amount: (sp.hourlyRate || 10) * 2,
+      });
+      payload.push({
+        user: client._id as Types.ObjectId,
+        space: sp._id as Types.ObjectId,
+        start: buildDate(3, 10),
+        end: buildDate(3, 13),
+        status: BOOKING_STATUS.PENDING,
+        amount: (sp.hourlyRate || 10) * 3,
+      });
+    }
   }
 
   await Booking.insertMany(payload);

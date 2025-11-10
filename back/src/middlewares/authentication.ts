@@ -38,7 +38,6 @@ function authentication(req: Request, res: Response, next: NextFunction): void {
     }
 
     req.user = decoded as any;
-    console.info(`User ${decoded._id} authenticated`);
     next();
   } catch (err) {
     const error = err as Error;

@@ -2,7 +2,7 @@ import express, { Request, Response, NextFunction } from "express";
 import bcrypt from "bcrypt";
 import User from "../schemas/user";
 import { CreateUserRequest, UserRole } from "../types/index";
-import { USER_ROLES } from "../enums/role";
+import { USER_ROLE, USER_ROLES } from "../enums/role";
 import authentication from "../middlewares/authentication";
 
 const router = express.Router();
@@ -12,7 +12,7 @@ function reqUser(req: Request) {
 }
 
 function isAdmin(req: Request): boolean {
-  return reqUser(req)?.role === "admin";
+  return reqUser(req)?.role === USER_ROLE.ADMIN;
 }
 
 function ensureAdmin(req: Request, res: Response, next: NextFunction) {
@@ -26,7 +26,8 @@ function ensureSelfOrAdmin(
   next: NextFunction
 ) {
   const u = reqUser(req);
-  if (u?.role === "admin" || (u?._id && req.params.id === u._id)) return next();
+  if (u?.role === USER_ROLE.ADMIN || (u?._id && req.params.id === u._id))
+    return next();
   res.status(403).send("Unauthorized");
 }
 
@@ -126,7 +127,9 @@ async function updateUser(
     }
 
     const requester = reqUser(req);
-    if (!(requester?.role === "admin" || requester?._id === req.params.id)) {
+    if (
+      !(requester?.role === USER_ROLE.ADMIN || requester?._id === req.params.id)
+    ) {
       res.status(403).send("Unauthorized");
       return;
     }

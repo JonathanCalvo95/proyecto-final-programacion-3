@@ -6,6 +6,8 @@ import express, {
 import { SPACE_TYPES, type SpaceType } from "../enums/space";
 import { USER_ROLE, type UserRole } from "../enums/role";
 import SpaceModel from "../schemas/space";
+import authentication from "../middlewares/authentication";
+import { Types } from "mongoose";
 
 type AuthedRequest = Request & { user?: { _id?: string; role?: UserRole } };
 
@@ -19,24 +21,24 @@ function ensureAdmin(req: AuthedRequest, res: Response, next: NextFunction) {
 
 const router = express.Router();
 
-// GET /spaces  (?active=true|false & ?type=sala|escritorio)
+// GET /spaces
 router.get("/", async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const filter: Record<string, unknown> = {};
-    if (typeof req.query.active === "string") {
-      filter.active = req.query.active === "true";
-    }
+    const filter: Record<string, unknown> = { active: true };
+
     if (typeof req.query.type === "string") {
       const t = req.query.type;
       if (!SPACE_TYPES.includes(t as SpaceType)) {
-        return res.status(400).json({ message: "Invalid type filter" });
+        return res.status(400).json({ message: "Filtro de tipo inválido" });
       }
       filter.type = t;
     }
+
     const spaces = await SpaceModel.find(filter)
       .sort({ createdAt: -1 })
       .lean()
       .exec();
+
     res.json(spaces);
   } catch (err) {
     next(err);
@@ -47,7 +49,8 @@ router.get("/", async (req: Request, res: Response, next: NextFunction) => {
 router.get("/:id", async (req: Request, res: Response, next: NextFunction) => {
   try {
     const space = await SpaceModel.findById(req.params.id).lean().exec();
-    if (!space) return res.status(404).json({ message: "Space not found" });
+    if (!space)
+      return res.status(404).json({ message: "Espacio no encontrado" });
     res.json(space);
   } catch (err) {
     next(err);
@@ -57,30 +60,29 @@ router.get("/:id", async (req: Request, res: Response, next: NextFunction) => {
 // POST /spaces  (solo admin)
 router.post(
   "/",
+  authentication,
   ensureAdmin,
   async (req: AuthedRequest, res: Response, next: NextFunction) => {
     try {
       const { name, type, capacity, hourlyRate, active } = req.body ?? {};
-
       if (
         !name ||
         !type ||
         typeof capacity !== "number" ||
         typeof hourlyRate !== "number"
       ) {
-        return res.status(400).json({ message: "Missing required fields" });
+        return res.status(400).json({ message: "Faltan campos obligatorios" });
       }
-
       if (!SPACE_TYPES.includes(type as SpaceType)) {
-        return res.status(400).json({ message: "Invalid type" });
+        return res.status(400).json({ message: "Tipo inválido" });
       }
-
       const created = await SpaceModel.create({
         name: String(name).trim(),
         type: type as SpaceType,
         capacity,
         hourlyRate,
         active: typeof active === "boolean" ? active : true,
+        createdBy: req.user?._id ? new Types.ObjectId(req.user._id) : undefined,
       });
       res.status(201).json(created);
     } catch (err) {
@@ -92,12 +94,12 @@ router.post(
 // PUT /spaces/:id  (solo admin)
 router.put(
   "/:id",
+  authentication,
   ensureAdmin,
   async (req: AuthedRequest, res: Response, next: NextFunction) => {
     try {
       const allowed: Record<string, unknown> = {};
       const body = req.body ?? {};
-
       if (typeof body.name === "string") allowed.name = body.name.trim();
       if (SPACE_TYPES.includes(body.type as SpaceType))
         allowed.type = body.type as SpaceType;
@@ -105,7 +107,6 @@ router.put(
       if (typeof body.hourlyRate === "number")
         allowed.hourlyRate = body.hourlyRate;
       if (typeof body.active === "boolean") allowed.active = body.active;
-
       const updated = await SpaceModel.findByIdAndUpdate(
         req.params.id,
         allowed,
@@ -113,8 +114,8 @@ router.put(
       )
         .lean()
         .exec();
-
-      if (!updated) return res.status(404).json({ message: "Space not found" });
+      if (!updated)
+        return res.status(404).json({ message: "Espacio no encontrado" });
       res.json(updated);
     } catch (err) {
       next(err);
@@ -122,17 +123,25 @@ router.put(
   }
 );
 
-// DELETE /spaces/:id  (solo admin)
+// DELETE logico /spaces/:id  (solo admin)
 router.delete(
   "/:id",
+  authentication,
   ensureAdmin,
   async (req: AuthedRequest, res: Response, next: NextFunction) => {
     try {
-      const deleted = await SpaceModel.findByIdAndDelete(req.params.id)
-        .lean()
-        .exec();
-      if (!deleted) return res.status(404).json({ message: "Space not found" });
-      res.json({ ok: true });
+      const space = await SpaceModel.findById(req.params.id);
+      if (!space)
+        return res.status(404).json({ message: "Espacio no encontrado" });
+
+      if (!space.active) {
+        return res.status(400).json({ message: "Espacio ya inactivo" });
+      }
+
+      space.active = false;
+      await space.save();
+
+      res.json({ ok: true, message: "Espacio desactivado" });
     } catch (err) {
       next(err);
     }

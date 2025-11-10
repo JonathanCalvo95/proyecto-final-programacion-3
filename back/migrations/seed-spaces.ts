@@ -11,17 +11,45 @@ export async function seedSpacesIfEmpty() {
 
   const spaces = [
     {
-      name: "Sala Río",
+      name: "Sala 1",
       type: SPACE_TYPE.MEETING_ROOM,
       capacity: 8,
       hourlyRate: 20,
       createdBy: adminId,
     },
     {
-      name: "Escritorio 12",
+      name: "Sala 2",
+      type: SPACE_TYPE.MEETING_ROOM,
+      capacity: 6,
+      hourlyRate: 15,
+      createdBy: adminId,
+    },
+    {
+      name: "Escritorio 1",
       type: SPACE_TYPE.DESK,
-      capacity: 1,
+      capacity: 4,
       hourlyRate: 5,
+      createdBy: adminId,
+    },
+    {
+      name: "Escritorio 2",
+      type: SPACE_TYPE.DESK,
+      capacity: 4,
+      hourlyRate: 5,
+      createdBy: adminId,
+    },
+    {
+      name: "Oficina 1",
+      type: SPACE_TYPE.DESK,
+      capacity: 6,
+      hourlyRate: 10,
+      createdBy: adminId,
+    },
+    {
+      name: "Oficina 2",
+      type: SPACE_TYPE.DESK,
+      capacity: 5,
+      hourlyRate: 8,
       createdBy: adminId,
     },
   ];

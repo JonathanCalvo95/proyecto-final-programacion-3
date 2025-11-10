@@ -2,13 +2,16 @@ import { Router, Request, Response, NextFunction } from "express";
 import authentication from "../middlewares/authentication";
 import Space from "../schemas/space";
 import Booking from "../schemas/booking";
+import { BOOKING_STATUS, USER_ROLE } from "../enums";
 
 const router = Router();
 
 function requireAdmin(req: Request, res: Response, next: NextFunction) {
-  if (req.user?.role === "admin") return next();
+  if (req.user?.role === USER_ROLE.ADMIN) return next();
   return res.status(403).json({ message: "Forbidden" });
 }
+
+const WORKING_HOURS_PER_DAY = 8;
 
 // GET /api/admin/metrics
 router.get(
@@ -17,24 +20,43 @@ router.get(
   requireAdmin,
   async (_req, res, next) => {
     try {
-      const [totalSpaces, totalBookings] = await Promise.all([
-        Space.countDocuments(),
-        Booking.countDocuments({ status: { $ne: "cancelada" } }),
-      ]);
+      const now = new Date();
+      const since = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
-      const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-      const recentBookings = await Booking.countDocuments({
-        start: { $gte: since },
-        status: { $ne: "cancelada" },
+      const totalSpaces = await Space.estimatedDocumentCount();
+      const totalBookings = await Booking.countDocuments({
+        status: { $ne: BOOKING_STATUS.CANCELED },
       });
 
-      const occupancyRate = totalSpaces > 0 ? recentBookings / totalSpaces : 0;
+      const bookings = await Booking.find(
+        {
+          status: { $ne: BOOKING_STATUS.CANCELED },
+          end: { $gt: since },
+          start: { $lt: now },
+        },
+        { start: 1, end: 1 }
+      ).lean();
 
-      res.json({
-        totalSpaces,
-        totalBookings,
-        occupancyRate,
-      });
+      let reservedHours = 0;
+      const sinceMs = since.getTime();
+      const nowMs = now.getTime();
+
+      for (const b of bookings) {
+        const s = new Date((b as any).start).getTime();
+        const e = new Date((b as any).end).getTime();
+        const clipStart = Math.max(s, sinceMs);
+        const clipEnd = Math.min(e, nowMs);
+        if (clipEnd > clipStart) {
+          reservedHours += (clipEnd - clipStart) / (1000 * 60 * 60);
+        }
+      }
+
+      const denom =
+        totalSpaces > 0 ? totalSpaces * WORKING_HOURS_PER_DAY * 30 : 0;
+      const rate = denom > 0 ? reservedHours / denom : 0;
+      const occupancyRate = Math.max(0, Math.min(1, rate));
+
+      res.json({ totalSpaces, totalBookings, occupancyRate });
     } catch (e) {
       next(e);
     }
@@ -49,17 +71,14 @@ router.get(
   async (_req, res, next) => {
     try {
       const top = await Booking.aggregate([
-        { $match: { status: { $ne: "cancelada" } } },
+        { $match: { status: { $ne: BOOKING_STATUS.CANCELED } } },
         { $group: { _id: "$space", count: { $sum: 1 } } },
         { $sort: { count: -1 } },
         { $limit: 5 },
       ]);
 
       const ids = top.map((t) => t._id);
-      const spaces = await Space.find(
-        { _id: { $in: ids } },
-        { title: 1, name: 1 }
-      );
+      const spaces = await Space.find({ _id: { $in: ids } }, { name: 1 });
 
       const map = new Map(
         spaces.map((s) => [s._id.toString(), (s as any).name || ""])
@@ -68,7 +87,7 @@ router.get(
       res.json(
         top.map((t) => ({
           _id: t._id,
-          title: map.get(t._id.toString()) || "",
+          name: map.get(t._id.toString()) || "",
           count: t.count,
         }))
       );

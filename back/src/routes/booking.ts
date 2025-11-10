@@ -24,7 +24,7 @@ function ensureOwnerOrAdmin(
   if (!userId) return res.status(401).send("Unauthenticated");
   Booking.findById(req.params.id)
     .then((r) => {
-      if (!r) return res.status(404).send("Booking not found");
+      if (!r) return res.status(404).send("Reserva no encontrada");
       if (r.user.toString() !== userId.toString())
         return res.status(403).send("Unauthorized");
       (req as any).booking = r;
@@ -40,27 +40,12 @@ async function loadBooking(
 ) {
   try {
     const b = await Booking.findById(req.params.id);
-    if (!b) return res.status(404).json({ message: "Booking not found" });
+    if (!b) return res.status(404).json({ message: "Reserva no encontrada" });
     (req as any).booking = b;
     next();
   } catch (e) {
     next(e);
   }
-}
-
-function ownerOrAdmin(
-  req: Request<{ id: string }>,
-  res: Response,
-  next: NextFunction
-) {
-  const booking = (req as any).booking;
-  if (
-    booking.user.toString() === (req.user as any)?._id?.toString() ||
-    isAdmin(req)
-  ) {
-    return next();
-  }
-  return res.status(403).json({ message: "Forbidden" });
 }
 
 // List all bookings (admin)
@@ -88,7 +73,7 @@ router.get("/my", authentication, async (req, res, next) => {
   }
 });
 
-// Get booking by id (owner or admin)
+// Get booking by id
 router.get("/:id", authentication, ensureOwnerOrAdmin, async (req, res) => {
   res.send((req as any).booking);
 });
@@ -98,25 +83,28 @@ router.post("/", authentication, async (req, res, next) => {
   try {
     const { spaceId, start, end } = req.body ?? {};
     if (!spaceId || !start || !end)
-      return res.status(400).send("Missing required fields");
+      return res.status(400).send("Falta campos obligatorios");
     const s = new Date(start);
     const e = new Date(end);
     if (isNaN(s.getTime()) || isNaN(e.getTime()))
-      return res.status(400).send("Invalid date format");
-    if (s >= e) return res.status(400).send("Start must be before end");
+      return res.status(400).send("Format de fecha inválido");
+    if (s >= e)
+      return res
+        .status(400)
+        .send("Fecha de inicio debe ser antes de fecha de fin");
     if (s < new Date())
-      return res.status(400).send("Start must be in the future");
+      return res.status(400).send("Fecha de inicio debe ser futura");
 
     const space = await Space.findById(spaceId);
     if (!space || !space.active)
-      return res.status(404).send("Space not available");
+      return res.status(404).send("Espacio no encontrado");
 
     const conflict = await Booking.findOne({
       space: spaceId,
       status: BOOKING_STATUS.CONFIRMED,
       $or: [{ start: { $lt: e }, end: { $gt: s } }],
     });
-    if (conflict) return res.status(409).send("Time slot not available");
+    if (conflict) return res.status(409).send("Horario no disponible");
 
     const hours = (e.getTime() - s.getTime()) / 3600000;
     const amount = Math.round(hours * space.hourlyRate * 100) / 100;
@@ -135,7 +123,7 @@ router.post("/", authentication, async (req, res, next) => {
   }
 });
 
-// Cancel booking (owner or admin)
+// Cancel booking
 router.patch(
   "/:id/cancel",
   authentication,
@@ -144,11 +132,13 @@ router.patch(
     try {
       const booking = (req as any).booking;
       if (booking.status === BOOKING_STATUS.CANCELED)
-        return res.status(400).json({ message: "Already cancelled" });
+        return res.status(400).json({ message: "Ya cancelada" });
       if (booking.start <= new Date())
         return res
           .status(400)
-          .json({ message: "Cannot cancel past or ongoing booking" });
+          .json({
+            message: "No se puede cancelar una reserva pasada o en curso",
+          });
       booking.status = BOOKING_STATUS.CANCELED;
       await booking.save();
       res.json(booking);
@@ -167,12 +157,63 @@ router.patch(
     try {
       const booking = (req as any).booking;
       if (booking.status === BOOKING_STATUS.CONFIRMED)
-        return res.status(400).json({ message: "Already confirmed" });
+        return res.status(400).json({ message: "Ya confirmada" });
       if (booking.status === BOOKING_STATUS.CANCELED)
         return res
           .status(400)
-          .json({ message: "Cannot confirm a cancelled booking" });
+          .json({ message: "No se puede confirmar una reserva cancelada" });
       booking.status = BOOKING_STATUS.CONFIRMED;
+      await booking.save();
+      res.json(booking);
+    } catch (e) {
+      next(e);
+    }
+  }
+);
+
+// Reschedule booking
+router.patch(
+  "/:id/reschedule",
+  authentication,
+  ensureOwnerOrAdmin,
+  async (req: Request<{ id: string }>, res: Response, next: NextFunction) => {
+    try {
+      const booking = (req as any).booking;
+      const { start, end } = req.body ?? {};
+      if (!start || !end)
+        return res.status(400).send("Falta campos obligatorios");
+
+      const s = new Date(start);
+      const e = new Date(end);
+      if (isNaN(s.getTime()) || isNaN(e.getTime()))
+        return res.status(400).send("Formato de fecha inválido");
+      if (s >= e)
+        return res
+          .status(400)
+          .send("Fecha de inicio debe ser antes de fecha de fin");
+      if (booking.start <= new Date())
+        return res
+          .status(400)
+          .send("No se puede reprogramar una reserva pasada u en curso");
+
+      const space = await Space.findById(booking.space);
+      if (!space) return res.status(404).send("Espacio no encontrado");
+
+      const conflict = await Booking.findOne({
+        _id: { $ne: booking._id },
+        space: booking.space,
+        status: BOOKING_STATUS.CONFIRMED,
+        start: { $lt: e },
+        end: { $gt: s },
+      });
+      if (conflict) return res.status(409).send("Horario no disponible");
+
+      booking.start = s;
+      booking.end = e;
+
+      const hours = (e.getTime() - s.getTime()) / 3600000;
+      booking.amount = Math.round(hours * (space.hourlyRate || 0) * 100) / 100;
+
       await booking.save();
       res.json(booking);
     } catch (e) {
