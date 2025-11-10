@@ -3,8 +3,9 @@ import Grid from '@mui/material/Grid'
 import { Card, CardContent, Typography, Button, Stack, Alert, CircularProgress } from '@mui/material'
 import dayjs from 'dayjs'
 import { DateTimePicker } from '@mui/x-date-pickers'
-import api from '../../services/api'
-import type { Space } from '../../types'
+import { getSpaces } from '../../services/spaces'
+import { createBooking } from '../../services/bookings'
+import type { Space } from '../../types/space.types'
 
 const asArray = <T,>(v: T[] | null | undefined): T[] => (Array.isArray(v) ? v : [])
 
@@ -12,16 +13,13 @@ export default function Spaces() {
   const [spaces, setSpaces] = useState<Space[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-
   const [start, setStart] = useState<dayjs.Dayjs | null>(null)
   const [end, setEnd] = useState<dayjs.Dayjs | null>(null)
 
   useEffect(() => {
     ;(async () => {
       try {
-        const r = await api.get('/spaces')
-        // Soporta tanto {data: []} como []
-        const list = Array.isArray(r.data) ? r.data : r.data?.data
+        const list = await getSpaces()
         setSpaces(asArray(list))
       } catch (e: any) {
         setError(e?.response?.data?.message ?? e?.message ?? 'Error cargando espacios')
@@ -32,16 +30,9 @@ export default function Spaces() {
   }, [])
 
   async function book(spaceId: string) {
-    if (!start || !end) {
-      alert('Seleccione rango')
-      return
-    }
+    if (!start || !end) return alert('Seleccione rango')
     try {
-      await api.post('/bookings', {
-        spaceId,
-        start: start.toISOString(),
-        end: end.toISOString(),
-      })
+      await createBooking(spaceId, start.toISOString(), end.toISOString())
       alert('Reserva creada')
     } catch (e: any) {
       alert(e?.response?.data?.message || 'Error al reservar')
@@ -88,13 +79,12 @@ export default function Spaces() {
           <Card>
             <CardContent>
               <Typography variant="h6">
-                {s.title} - ${s.hourlyRate}/h
+                {s.name} - ${s.hourlyRate}/h
               </Typography>
               <Typography variant="body2" color="text.secondary">
                 {s.type}
               </Typography>
               <Typography>Capacidad: {s.capacity}</Typography>
-              <Typography>Amenidades: {asArray(s.amenities).join(', ') || '-'}</Typography>
               <Button sx={{ mt: 1 }} variant="contained" onClick={() => book(s._id)}>
                 Reservar
               </Button>

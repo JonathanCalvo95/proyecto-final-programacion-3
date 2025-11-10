@@ -18,27 +18,5 @@ export const BOOKING_STATUS = {
   CANCELED: 'canceled',
 } as const
 
-export interface User {
-  id: string
-  name: string
-  email: string
-  role: UserRole
-}
-
-export interface Space {
-  _id: string
-  title: string
-  description?: string
-  type: SpaceType
-  capacity: number
-  hourlyRate: number
-  amenities: string[]
-}
-
-export interface Booking {
-  _id: string
-  space: Space | string
-  start: string
-  end: string
-  status: BookingStatus
-}
+export const PAYMENT_STATUSES = ['pending', 'paid', 'failed', 'refunded'] as const
+export type PaymentStatus = (typeof PAYMENT_STATUSES)[number]

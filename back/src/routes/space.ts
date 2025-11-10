@@ -3,7 +3,6 @@ import express, {
   type Response,
   type NextFunction,
 } from "express";
-import mongoose from "mongoose";
 import { SPACE_TYPES, type SpaceType } from "../enums/space";
 import { USER_ROLE, type UserRole } from "../enums/role";
 import SpaceModel from "../schemas/space";
@@ -18,14 +17,7 @@ function ensureAdmin(req: AuthedRequest, res: Response, next: NextFunction) {
   return res.status(403).json({ message: "Unauthorized" });
 }
 
-function ensureDbReady(_req: Request, res: Response, next: NextFunction) {
-  if (mongoose.connection.readyState === 1) return next();
-  return res.status(503).json({ message: "Database not connected" });
-}
-
 const router = express.Router();
-
-router.use(ensureDbReady);
 
 // GET /spaces  (?active=true|false & ?type=sala|escritorio)
 router.get("/", async (req: Request, res: Response, next: NextFunction) => {

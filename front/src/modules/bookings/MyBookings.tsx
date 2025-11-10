@@ -14,8 +14,9 @@ import {
 } from '@mui/material'
 import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker'
 import dayjs from 'dayjs'
+import { getMyBookings, cancelBooking } from '../../services/bookings'
 import api from '../../services/api'
-import type { Booking } from '../../types'
+import type { Booking } from '../../types/booking.types'
 
 export default function MyBookings() {
   const [data, setData] = useState<Booking[]>([])
@@ -24,19 +25,20 @@ export default function MyBookings() {
   const [start, setStart] = useState<dayjs.Dayjs | null>(null)
   const [end, setEnd] = useState<dayjs.Dayjs | null>(null)
 
-  const load = () => api.get('/bookings/my').then((r) => setData(r.data))
+  const load = async () => setData(await getMyBookings())
   useEffect(() => {
     load()
   }, [])
 
   async function cancel(id: string) {
     try {
-      await api.patch(`/bookings/${id}/cancel`)
+      await cancelBooking(id)
       load()
     } catch (e: any) {
       alert(e?.response?.data?.message || 'Error al cancelar')
     }
   }
+
   async function reschedule() {
     if (!current || !start || !end) return
     try {
@@ -68,7 +70,7 @@ export default function MyBookings() {
           <TableBody>
             {data.map((r) => (
               <TableRow key={r._id}>
-                <TableCell>{typeof r.space === 'string' ? r.space : r.space.title}</TableCell>
+                <TableCell>{typeof r.space === 'string' ? r.space : r.space.name}</TableCell>
                 <TableCell>{dayjs(r.start).format('YYYY-MM-DD HH:mm')}</TableCell>
                 <TableCell>{dayjs(r.end).format('YYYY-MM-DD HH:mm')}</TableCell>
                 <TableCell>{r.status}</TableCell>
@@ -93,6 +95,7 @@ export default function MyBookings() {
           </TableBody>
         </Table>
       </TableContainer>
+
       <Dialog open={open} onClose={() => setOpen(false)}>
         <DialogTitle>Reprogramar</DialogTitle>
         <DialogContent sx={{ pt: 1 }}>

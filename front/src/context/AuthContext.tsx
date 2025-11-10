@@ -1,32 +1,44 @@
 import React, { createContext, useContext, useEffect, useState } from 'react'
-import api from '../services/api'
-import type { User } from '../types'
+import type { User } from '../types/user.types'
+import { login as authLogin, register as authRegister, me as authMe, logout as authLogout } from '../services/auth'
 
 type AuthCtx = {
   user: User | null
   loading: boolean
   login: (email: string, password: string) => Promise<void>
-  register: (name: string, email: string, password: string) => Promise<void>
+  register: (firstName: string, email: string, password: string) => Promise<void>
   logout: () => Promise<void>
 }
 
 const Context = createContext<AuthCtx | undefined>(undefined)
 
+function normalizeUser(raw: any): User | null {
+  if (!raw) return null
+  const r = raw?.user ?? raw
+  const id = r?.id || r?._id
+  if (!id) return null
+  return {
+    id: String(id),
+    email: r.email || '',
+    firstName: r.firstName ?? r.name ?? '',
+    lastName: r.lastName || '',
+    role: r.role,
+    isActive: r.isActive ?? true,
+  } as User
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
 
-  function pickUser(payload: any): User {
-    return (payload?.user ?? payload) as User
-  }
-
+  // Sesión inicial
   useEffect(() => {
     let mounted = true
     ;(async () => {
       try {
-        const me = await api.get('/auth/me') // cookie httpOnly
+        const profile = await authMe()
         if (!mounted) return
-        setUser(pickUser(me))
+        setUser(normalizeUser(profile))
       } catch {
         if (!mounted) return
         setUser(null)
@@ -41,19 +53,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   async function login(email: string, password: string) {
-    // el server setea cookies y devuelve { user } o user
-    const res = await api.post('/auth/login', { email, password })
-    setUser(pickUser(res))
+    await authLogin(email, password)
+    const profile = await authMe()
+    setUser(normalizeUser(profile))
   }
 
-  async function register(name: string, email: string, password: string) {
-    const res = await api.post('/auth/register', { name, email, password })
-    setUser(pickUser(res))
+  async function register(firstName: string, email: string, password: string) {
+    await authRegister(firstName, email, password)
+    const profile = await authMe()
+    setUser(normalizeUser(profile))
   }
 
   async function logout() {
     try {
-      await api.post('/auth/logout')
+      await authLogout()
     } finally {
       setUser(null)
     }

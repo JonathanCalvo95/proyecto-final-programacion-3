@@ -4,7 +4,7 @@ import AccountCircle from '@mui/icons-material/AccountCircle'
 import WorkspacesOutlinedIcon from '@mui/icons-material/WorkspacesOutlined'
 import { Link as RouterLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
-import { USER_ROLE } from '../../types'
+import { USER_ROLE } from '../../types/enums'
 
 export default function NavBar() {
   const { user, logout } = useAuth()
@@ -50,7 +50,7 @@ export default function NavBar() {
                 Dashboard
               </Button>
               <Button color="inherit" component={RouterLink} to="/admin/spaces">
-                Gestionar
+                Gestionar espacios
               </Button>
             </>
           )}
@@ -88,7 +88,7 @@ export default function NavBar() {
                 anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
                 transformOrigin={{ vertical: 'top', horizontal: 'right' }}
               >
-                <MenuItem disabled>{user.name}</MenuItem>
+                <MenuItem disabled>{user.firstName}</MenuItem>
                 <MenuItem
                   onClick={async () => {
                     handleClose()

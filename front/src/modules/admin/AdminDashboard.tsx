@@ -1,14 +1,20 @@
 import { useEffect, useState } from 'react'
-import { Grid, Paper, Typography } from '@mui/material'
-import api from '../../services/api'
+import Grid from '@mui/material/Grid'
+import { Paper, Typography } from '@mui/material'
+import { getMetrics, getTopSpaces } from '../../services/admin'
 
 export default function AdminDashboard() {
   const [metrics, setMetrics] = useState<any>({})
   const [top, setTop] = useState<any[]>([])
+
   useEffect(() => {
-    api.get('/admin/metrics').then((r) => setMetrics(r.data))
-    api.get('/admin/top-spaces').then((r) => setTop(r.data))
+    ;(async () => {
+      const [m, t] = await Promise.all([getMetrics(), getTopSpaces()])
+      setMetrics(m || {})
+      setTop(Array.isArray(t) ? t : [])
+    })()
   }, [])
+
   return (
     <Grid container spacing={2}>
       <Grid size={{ xs: 12, md: 4 }}>
@@ -35,7 +41,7 @@ export default function AdminDashboard() {
             Top espacios
           </Typography>
           <ul style={{ margin: 0, paddingLeft: 16 }}>
-            {top.map((t) => (
+            {(top || []).map((t) => (
               <li key={t._id}>
                 {t._id} - {t.count}
               </li>
