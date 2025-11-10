@@ -3,40 +3,10 @@ import express, {
   type Response,
   type NextFunction,
 } from "express";
-import { Schema, model, models, type Document, type Model } from "mongoose";
+import mongoose from "mongoose";
 import { SPACE_TYPES, type SpaceType } from "../enums/space";
 import { USER_ROLE, type UserRole } from "../enums/role";
-
-export interface ISpace extends Document {
-  name: string;
-  type: SpaceType;
-  capacity: number;
-  hourlyRate: number;
-  active: boolean;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-const SpaceSchema = new Schema<ISpace>(
-  {
-    name: { type: String, required: true, trim: true },
-    type: {
-      type: String,
-      enum: SPACE_TYPES,
-      required: true,
-      index: true,
-    },
-    capacity: { type: Number, required: true, min: 1 },
-    hourlyRate: { type: Number, required: true, min: 0 },
-    active: { type: Boolean, default: true, index: true },
-  },
-  { timestamps: true, versionKey: false }
-);
-
-SpaceSchema.index({ active: 1, type: 1 });
-
-export const SpaceModel: Model<ISpace> =
-  (models.Space as Model<ISpace>) || model<ISpace>("Space", SpaceSchema);
+import SpaceModel from "../schemas/space";
 
 type AuthedRequest = Request & { user?: { _id?: string; role?: UserRole } };
 
@@ -48,7 +18,14 @@ function ensureAdmin(req: AuthedRequest, res: Response, next: NextFunction) {
   return res.status(403).json({ message: "Unauthorized" });
 }
 
+function ensureDbReady(_req: Request, res: Response, next: NextFunction) {
+  if (mongoose.connection.readyState === 1) return next();
+  return res.status(503).json({ message: "Database not connected" });
+}
+
 const router = express.Router();
+
+router.use(ensureDbReady);
 
 // GET /spaces  (?active=true|false & ?type=sala|escritorio)
 router.get("/", async (req: Request, res: Response, next: NextFunction) => {
@@ -58,7 +35,11 @@ router.get("/", async (req: Request, res: Response, next: NextFunction) => {
       filter.active = req.query.active === "true";
     }
     if (typeof req.query.type === "string") {
-      filter.type = req.query.type;
+      const t = req.query.type;
+      if (!SPACE_TYPES.includes(t as SpaceType)) {
+        return res.status(400).json({ message: "Invalid type filter" });
+      }
+      filter.type = t;
     }
     const spaces = await SpaceModel.find(filter)
       .sort({ createdAt: -1 })
@@ -122,7 +103,7 @@ router.put(
   ensureAdmin,
   async (req: AuthedRequest, res: Response, next: NextFunction) => {
     try {
-      const allowed: Partial<ISpace> = {};
+      const allowed: Record<string, unknown> = {};
       const body = req.body ?? {};
 
       if (typeof body.name === "string") allowed.name = body.name.trim();

@@ -6,7 +6,7 @@ const schema = new Schema(
     message: String,
     meta: Schema.Types.Mixed,
   },
-  { timestamps: true }
+  { timestamps: true, versionKey: false }
 );
 
 export const AuditLogModel = model("AuditLog", schema);

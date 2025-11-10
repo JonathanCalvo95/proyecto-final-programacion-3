@@ -8,8 +8,6 @@ export interface IUser extends Document {
   password: string;
   firstName?: string;
   lastName?: string;
-  phone?: string;
-  bornDate?: Date;
   role: UserRole;
   isActive: boolean;
   createdAt: Date;
@@ -29,8 +27,6 @@ const schema = new Schema<IUser>(
     password: { type: String, required: true },
     firstName: { type: String, trim: true },
     lastName: { type: String, trim: true },
-    phone: { type: String, trim: true },
-    bornDate: { type: Date },
     role: {
       type: String,
       enum: USER_ROLES,

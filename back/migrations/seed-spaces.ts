@@ -12,20 +12,16 @@ export async function seedSpacesIfEmpty() {
   const spaces = [
     {
       name: "Sala Río",
-      description: "Sala de reunión con TV y pizarrón",
       type: SPACE_TYPE.MEETING_ROOM,
       capacity: 8,
       hourlyRate: 20,
-      amenities: ["TV", "Pizarra", "WiFi"],
       createdBy: adminId,
     },
     {
       name: "Escritorio 12",
-      description: "Estación individual con energía y wifi",
       type: SPACE_TYPE.DESK,
       capacity: 1,
       hourlyRate: 5,
-      amenities: ["Power", "WiFi"],
       createdBy: adminId,
     },
   ];

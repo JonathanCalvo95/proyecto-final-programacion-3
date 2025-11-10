@@ -1,9 +1,16 @@
-import { Schema, model, Document, Types, Model, models } from "mongoose";
+import mongoose, {
+  Schema,
+  model,
+  Document,
+  Types,
+  Model,
+  models,
+} from "mongoose";
 import { SpaceType, SPACE_TYPES } from "../enums";
 
 export interface ISpace extends Document {
-  title: string;
-  description?: string;
+  _id: Types.ObjectId;
+  name: string;
   type: SpaceType;
   capacity: number;
   hourlyRate: number;
@@ -16,8 +23,7 @@ export interface ISpace extends Document {
 
 const schema = new Schema<ISpace>(
   {
-    title: { type: String, required: true, trim: true },
-    description: { type: String },
+    name: { type: String, required: true, trim: true },
     type: {
       type: String,
       enum: SPACE_TYPES,
@@ -26,7 +32,6 @@ const schema = new Schema<ISpace>(
     },
     capacity: { type: Number, required: true, min: 1 },
     hourlyRate: { type: Number, required: true, min: 0 },
-    amenities: { type: [String], default: [] },
     active: { type: Boolean, default: true, index: true },
     createdBy: {
       type: Schema.Types.ObjectId,
@@ -35,8 +40,12 @@ const schema = new Schema<ISpace>(
       index: true,
     },
   },
-  { timestamps: true }
+  { timestamps: true, versionKey: false }
 );
+
+if (mongoose.models.Space) {
+  mongoose.deleteModel("Space");
+}
 
 const SpaceModel: Model<ISpace> =
   (models.Space as Model<ISpace>) || model<ISpace>("Space", schema);

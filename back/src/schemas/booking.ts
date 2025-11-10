@@ -26,7 +26,7 @@ const schema = new Schema<IBooking>(
       default: BOOKING_STATUSES[0],
     },
   },
-  { timestamps: true }
+  { timestamps: true, versionKey: false }
 );
 
 schema.index({ space: 1, start: 1, end: 1 });

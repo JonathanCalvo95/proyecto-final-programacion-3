@@ -104,7 +104,6 @@ async function createUser(
 
     const userCreated = await User.create({
       ...body,
-      bornDate: body.bornDate ? toDate(body.bornDate.toString()) : undefined,
       password: passEncrypted,
       role: body.role as UserRole,
     });
@@ -151,10 +150,6 @@ async function updateUser(
 
     if (update.password) {
       update.password = await bcrypt.hash(update.password, 10);
-    }
-
-    if (update.bornDate) {
-      update.bornDate = toDate(update.bornDate.toString());
     }
 
     await userToUpdate.updateOne(update);

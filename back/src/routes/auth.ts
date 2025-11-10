@@ -18,8 +18,8 @@ const cookieOpts = {
 // Registro de usuario (cliente por defecto)
 router.post("/register", async (req, res) => {
   try {
-    const { name, email, password } = req.body ?? {};
-    if (!name || !email || !password) {
+    const { firstName, email, password } = req.body ?? {};
+    if (!firstName || !email || !password) {
       return res.status(400).json({ error: "Faltan campos requeridos" });
     }
     const exists = await User.findOne({ email });
@@ -28,7 +28,7 @@ router.post("/register", async (req, res) => {
 
     const hashed = await bcrypt.hash(password, 10);
     const user = await User.create({
-      firstName: name,
+      firstName: firstName,
       email,
       password: hashed,
       role: "client",
@@ -36,7 +36,7 @@ router.post("/register", async (req, res) => {
 
     res.status(201).json({
       id: user._id,
-      name: user.firstName,
+      firstName: user.firstName,
       email: user.email,
       role: user.role,
     });
@@ -57,7 +57,8 @@ router.post("/login", async (req, res) => {
     if (!user) return res.status(401).json({ error: "Credenciales inválidas" });
 
     const valid = await bcrypt.compare(password, user.password);
-    if (!valid) return res.status(401).json({ error: "Credenciales inválidas" });
+    if (!valid)
+      return res.status(401).json({ error: "Credenciales inválidas" });
 
     const token = jwt.sign(
       { _id: user._id.toString(), role: user.role, email: user.email } as any,
@@ -68,7 +69,7 @@ router.post("/login", async (req, res) => {
     res.cookie("token", token, cookieOpts);
     res.json({
       id: user._id,
-      name: user.firstName || user.email,
+      firstName: user.firstName || user.email,
       email: user.email,
       role: user.role,
     });
@@ -79,26 +80,22 @@ router.post("/login", async (req, res) => {
 });
 
 // Perfil
-router.get(
-  "/me",
-  authentication,
-  async (req, res) => {
-    try {
-      const user = await User.findById((req.user as any)?._id).select(
-        "firstName email role"
-      );
-      if (!user) return res.status(401).json({ error: "No autenticado" });
-      res.json({
-        id: user._id,
-        name: user.firstName || user.email,
-        email: user.email,
-        role: user.role,
-      });
-    } catch (e) {
-      res.status(500).json({ error: "Error obteniendo perfil" });
-    }
+router.get("/me", authentication, async (req, res) => {
+  try {
+    const user = await User.findById((req.user as any)?._id).select(
+      "firstName email role"
+    );
+    if (!user) return res.status(401).json({ error: "No autenticado" });
+    res.json({
+      id: user._id,
+      firstName: user.firstName || user.email,
+      email: user.email,
+      role: user.role,
+    });
+  } catch (e) {
+    res.status(500).json({ error: "Error obteniendo perfil" });
   }
-);
+});
 
 // Logout
 router.post("/logout", (_req, res) => {

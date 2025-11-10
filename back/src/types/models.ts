@@ -1,5 +1,5 @@
-import { Document, Types } from 'mongoose';
-import type { UserRole, GovernmentIdType } from '../enums';
+import { Document, Types } from "mongoose";
+import type { UserRole, GovernmentIdType } from "../enums";
 
 /* ===== Usuario ===== */
 export interface IUser extends Document {
@@ -9,11 +9,11 @@ export interface IUser extends Document {
   role: UserRole;
   firstName: string;
   lastName: string;
-  phone?: string;
   governmentId?: { type: GovernmentIdType; number: string };
-  bornDate?: Date;
   isActive: boolean;
-  checkPassword(potentialPassword: string): Promise<{ isOk: boolean; isLocked: boolean }>;
+  checkPassword(
+    potentialPassword: string
+  ): Promise<{ isOk: boolean; isLocked: boolean }>;
 }
 
 /* ===== JWT ===== */
@@ -45,9 +45,7 @@ export interface CreateUserRequest {
   role: UserRole;
   firstName: string;
   lastName: string;
-  phone?: string;
   governmentId?: { type: GovernmentIdType; number: string };
-  bornDate?: Date;
 }
 
 /* ===== Env ===== */

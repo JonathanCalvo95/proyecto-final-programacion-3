@@ -31,7 +31,7 @@ const paymentSchema = new Schema<IPayment>(
       index: true,
     },
   },
-  { timestamps: true }
+  { timestamps: true, versionKey: false }
 );
 
 export default model<IPayment>("Payment", paymentSchema);
