@@ -10,7 +10,6 @@ Proyecto realizado para la materia **Programación 3 - 2025**.
 - **Backend (back):** Node.js · Express · TypeScript · MongoDB (Mongoose)
 - **Frontend (front):** React · Vite · TypeScript · MUI Design
 - **Autenticación:** JWT almacenado en cookie httpOnly
-- **Roles:** administrador y cliente
 
 ---
 
@@ -34,21 +33,14 @@ Proyecto realizado para la materia **Programación 3 - 2025**.
 
 ## Variables de entorno
 
-Ubicadas en archivo `.env`:
+Ubicadas en archivos `.env`:
 
 - [back/.env](back/.env)
 - [front/.env](front/.env)
 
 ---
 
-**Credenciales iniciales:**
-
-- admin: `admin@cowork.com` / `Admin123!`
-- cliente: `client@cowork.com` / `Client123!`
-
----
-
-## ▶️ Ejecución en desarrollo
+## Ejecución en desarrollo
 
 Abrir **dos terminales**:
 
@@ -75,36 +67,53 @@ npm run dev
 
 ---
 
+**Credenciales iniciales:**
+
+- admin: `admin@cowork.com` / `Admin123!`
+- cliente1: `client1@cowork.com` / `Client123!`
+- cliente2: `client2@cowork.com` / `Client123!`
+
+---
+
 ## Endpoints principales (BACK)
 
-| Método | Ruta                       | Descripción             |
-| ------ | -------------------------- | ----------------------- |
-| POST   | `/api/auth/register`       | Crear usuario nuevo     |
-| POST   | `/api/auth/login`          | Login y JWT             |
-| GET    | `/api/users/me`            | Perfil del usuario      |
-| GET    | `/api/spaces`              | Listar espacios activos |
-| POST   | `/api/spaces`              | Crear espacio (admin)   |
-| POST   | `/api/bookings`            | Reservar un espacio     |
-| PATCH  | `/api/bookings/:id/cancel` | Cancelar reserva        |
-| GET    | `/api/admin/metrics`       | Métricas (admin)        |
+| Método | Ruta                             | Descripción               |
+| ------ | -------------------------------- | ------------------------- |
+| POST   | `/api/auth/login`                | Login y JWT               |
+| GET    | `/api/auth/me`                   | Perfil del usuario        |
+| POST   | `/api/auth/logout`               | Cerrar sesion             |
+| GET    | `/api/spaces`                    | Listar espacios activos   |
+| POST   | `/api/spaces`                    | Crear espacio (admin)     |
+| PUT    | `/api/spaces`                    | Modifica espacio (admin)  |
+| DELETE | `/api/spaces`                    | Eliminar espacio (admin)  |
+| GET    | `/api/bookings`                  | Listar reservas (admin)   |
+| GET    | `/api/bookings/my`               | Listar mis reservas       |
+| POST   | `/api/bookings`                  | Reservar un espacio       |
+| PATCH  | `/api/bookings/:id/confirm`      | Confirmar reserva         |
+| PATCH  | `/api/bookings/:id/reschedule`   | Reprogramar reserva       |
+| PATCH  | `/api/bookings/:id/cancel`       | Cancelar reserva          |
+| GET    | `/api/admin/metrics`             | Métricas (admin)          |
+| GET    | `/api/admin/top-spaces`          | Top reservas (admin)      |
 
 ---
 
 ## Rutas principales (FRONT)
 
-| Ruta        | Descripción             |
-| ----------- | ----------------------- |
-| `/login`    | Inicio de sesión        |
-| `/register` | Registro                |
-| `/`         | Listado de espacios     |
-| `/bookings` | Mis reservas            |
-| `/admin`    | Panel de administración |
+| Ruta              | Descripción                   |
+| ----------------- | ----------------------------- |
+| `/login`          | Inicio de sesión              |
+| `/`               | Métricas (admin)              |
+| `/admin`          | Métricas (admin)              |
+| `/admin/spaces`   | Géstion de espacios (admin)   |
+| `/admin/bookings` | Géstion de reservas (admin)   |
+| `/spaces`         | Listar espacios               |
+| `/bookings`       | Listar mis reservas           |
 
 ---
 
 ## Funcionalidades principales
 
-- Login y registro con JWT
+- Login con JWT
 - Roles: administrador / cliente
 - CRUD de espacios (admin)
 - Reservas con validación de disponibilidad
@@ -123,5 +132,4 @@ Se ejecuta al correr la aplicacion si no existen datos en las colecciones.
 
 ## Autor
 
-**Jonathan Calvo**  
-Proyecto académico - Universidad 2025
+**Jonathan Calvo**
