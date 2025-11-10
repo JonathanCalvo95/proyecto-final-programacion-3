@@ -38,12 +38,12 @@ export default function AdminDashboard() {
       <Grid size={{ xs: 12 }}>
         <Paper sx={{ p: 2 }}>
           <Typography variant="h6" gutterBottom>
-            Top espacios
+            Top Reservas
           </Typography>
           <ul style={{ margin: 0, paddingLeft: 16 }}>
             {(top || []).map((t) => (
               <li key={t._id}>
-                {t._id} - {t.count}
+                {t.name} - {t.count}
               </li>
             ))}
           </ul>

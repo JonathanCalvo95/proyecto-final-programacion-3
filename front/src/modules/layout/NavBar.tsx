@@ -47,18 +47,21 @@ export default function NavBar() {
           {user?.role === USER_ROLE.ADMIN && (
             <>
               <Button color="inherit" component={RouterLink} to="/admin">
-                Dashboard
+                Métricas
               </Button>
               <Button color="inherit" component={RouterLink} to="/admin/spaces">
                 Gestionar espacios
               </Button>
+              <Button color="inherit" component={RouterLink} to="/admin/bookings">
+                Gestionar reservas
+              </Button>
             </>
           )}
-          <Button color="inherit" component={RouterLink} to="/">
+          <Button color="inherit" component={RouterLink} to="/spaces">
             Espacios
           </Button>
           {user && (
-            <Button color="inherit" component={RouterLink} to="/my">
+            <Button color="inherit" component={RouterLink} to="/bookings">
               Mis Reservas
             </Button>
           )}

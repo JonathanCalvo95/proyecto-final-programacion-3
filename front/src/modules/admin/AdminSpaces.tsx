@@ -14,7 +14,16 @@ import {
   Alert,
   Stack,
   Box,
+  Card,
+  CardHeader,
+  CardContent,
+  Chip,
+  Divider,
+  Avatar,
+  Tooltip,
 } from '@mui/material'
+import { MeetingRoom, Desk, Apartment, Edit, Delete } from '@mui/icons-material'
+import { alpha } from '@mui/material/styles'
 import { getSpaces, createSpace, updateSpace, deleteSpace } from '../../services/spaces'
 import type { Space } from '../../types/space.types'
 import { SPACE_TYPE, type SpaceType } from '../../types/enums'
@@ -33,6 +42,14 @@ const EMPTY_FORM: SpaceForm = {
   hourlyRate: 0,
 }
 
+const TYPE_META: Record<SpaceType, { label: string; Icon: any; color: 'primary' | 'success' | 'warning' }> = {
+  meeting_room: { label: 'Sala de reunión', Icon: MeetingRoom, color: 'primary' },
+  desk: { label: 'Escritorio', Icon: Desk, color: 'success' },
+  private_office: { label: 'Oficina privada', Icon: Apartment, color: 'warning' },
+}
+
+const money = (v: number) => v.toLocaleString('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 })
+
 export default function AdminSpaces() {
   const [data, setData] = useState<Space[]>([])
   const [open, setOpen] = useState(false)
@@ -41,6 +58,10 @@ export default function AdminSpaces() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [form, setForm] = useState<SpaceForm>(EMPTY_FORM)
+  // Modal de eliminación
+  const [deleteOpen, setDeleteOpen] = useState(false)
+  const [toDelete, setToDelete] = useState<Space | null>(null)
+  const [deleting, setDeleting] = useState(false)
 
   async function load() {
     setLoading(true)
@@ -79,14 +100,12 @@ export default function AdminSpaces() {
   async function submit() {
     setSaving(true)
     setError(null)
-
     const payload = {
       name: form.name.trim(),
       type: form.type,
       capacity: Number(form.capacity) || 0,
       hourlyRate: Number(form.hourlyRate) || 0,
     }
-
     try {
       if (editing) {
         await updateSpace(editing._id, payload)
@@ -104,13 +123,26 @@ export default function AdminSpaces() {
     }
   }
 
-  async function remove(s: Space) {
-    if (!confirm('Eliminar espacio?')) return
+  // Abrir modal de eliminación
+  function askRemove(s: Space) {
+    setToDelete(s)
+    setDeleteOpen(true)
+  }
+
+  // Confirmar eliminación
+  async function confirmRemove() {
+    if (!toDelete) return
+    setDeleting(true)
     try {
-      await deleteSpace(s._id)
+      await deleteSpace(toDelete._id)
+      setDeleteOpen(false)
+      setToDelete(null)
       await load()
     } catch (e: any) {
-      alert(e?.response?.data?.message || 'Error eliminando')
+      const msg = e?.response?.data?.message || e?.message || 'Error eliminando'
+      setError(msg)
+    } finally {
+      setDeleting(false)
     }
   }
 
@@ -119,9 +151,6 @@ export default function AdminSpaces() {
       <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
         <Button variant="contained" onClick={openNew}>
           Nuevo espacio
-        </Button>
-        <Button variant="outlined" onClick={load} disabled={loading}>
-          Recargar
         </Button>
       </Stack>
 
@@ -137,33 +166,80 @@ export default function AdminSpaces() {
       )}
 
       <Grid container spacing={2}>
-        {data.map((s) => (
-          <Grid size={{ xs: 12, md: 6 }} key={s._id}>
-            <Paper sx={{ p: 2 }}>
-              <Typography variant="h6">{s.name}</Typography>
-              <Typography variant="caption" display="block" sx={{ mb: 1 }}>
-                {s.type}
-              </Typography>
-              <Typography>Capacidad: {s.capacity}</Typography>
-              <Typography>Tarifa: ${s.hourlyRate}/h</Typography>
-              <Stack direction="row" spacing={1} mt={1}>
-                <Button size="small" onClick={() => openEdit(s)}>
-                  Editar
-                </Button>
-                <Button size="small" color="error" onClick={() => remove(s)}>
-                  Eliminar
-                </Button>
-              </Stack>
-            </Paper>
-          </Grid>
-        ))}
+        {data.map((s) => {
+          const meta = TYPE_META[s.type as SpaceType] ?? TYPE_META.meeting_room
+          const Icon = meta.Icon
+          return (
+            <Grid size={{ xs: 12, md: 6 }} key={s._id}>
+              <Card
+                sx={{
+                  borderRadius: 3,
+                  boxShadow: 1,
+                  height: '100%',
+                  transition: 'all .2s ease',
+                  '&:hover': { boxShadow: 4, transform: 'translateY(-2px)' },
+                  outline: '1px solid',
+                  outlineColor: (t) => alpha(t.palette.divider, 0.6),
+                }}
+              >
+                <CardHeader
+                  avatar={
+                    <Avatar
+                      sx={(t) => ({
+                        bgcolor: alpha(t.palette[meta.color].main, 0.15),
+                        color: t.palette[meta.color].main,
+                      })}
+                    >
+                      <Icon />
+                    </Avatar>
+                  }
+                  titleTypographyProps={{ variant: 'h6' }}
+                  subheaderTypographyProps={{ variant: 'caption' }}
+                  title={s.name}
+                  subheader={meta.label}
+                  sx={{ pb: 1, '& .MuiCardHeader-title': { fontWeight: 600 } }}
+                />
+                <CardContent sx={{ pt: 0 }}>
+                  <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                    <Chip size="small" label={`Capacidad: ${s.capacity}`} color={meta.color} variant="outlined" />
+                    <Chip size="small" label={`Tarifa: ${money(s.hourlyRate)}/h`} variant="outlined" />
+                  </Stack>
+                  <Divider sx={{ my: 1.5 }} />
+                  <Stack direction="row" justifyContent="flex-end" spacing={1}>
+                    <Tooltip title="Editar">
+                      <Button size="small" startIcon={<Edit />} onClick={() => openEdit(s)}>
+                        Editar
+                      </Button>
+                    </Tooltip>
+                    <Tooltip title="Eliminar">
+                      <Button size="small" color="error" startIcon={<Delete />} onClick={() => askRemove(s)}>
+                        Eliminar
+                      </Button>
+                    </Tooltip>
+                  </Stack>
+                </CardContent>
+              </Card>
+            </Grid>
+          )
+        })}
         {!loading && data.length === 0 && !error && (
           <Grid size={{ xs: 12 }}>
-            <Typography variant="body2">No hay espacios.</Typography>
+            <Paper variant="outlined" sx={{ p: 4, textAlign: 'center', borderRadius: 3, color: 'text.secondary' }}>
+              <Typography variant="subtitle1" fontWeight={600} gutterBottom>
+                No hay espacios
+              </Typography>
+              <Typography variant="body2" sx={{ mb: 2 }}>
+                Creá tu primer espacio para empezar a reservar.
+              </Typography>
+              <Button variant="contained" onClick={openNew}>
+                Nuevo espacio
+              </Button>
+            </Paper>
           </Grid>
         )}
       </Grid>
 
+      {/* Modal Crear/Editar */}
       <Dialog open={open} onClose={() => setOpen(false)} fullWidth maxWidth="sm">
         <DialogTitle>{editing ? 'Editar espacio' : 'Nuevo espacio'}</DialogTitle>
         <DialogContent sx={{ pt: 1 }}>
@@ -210,6 +286,30 @@ export default function AdminSpaces() {
           </Button>
           <Button variant="contained" onClick={submit} disabled={saving}>
             {saving ? 'Guardando...' : editing ? 'Guardar' : 'Crear'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Modal Confirmar Eliminar */}
+      <Dialog open={deleteOpen} onClose={() => !deleting && setDeleteOpen(false)} fullWidth maxWidth="xs">
+        <DialogTitle>Eliminar espacio</DialogTitle>
+        <DialogContent sx={{ pt: 1 }}>
+          <Typography variant="body2" sx={{ mb: 1 }}>
+            ¿Seguro que deseas eliminar el espacio?
+          </Typography>
+          <Typography variant="subtitle1" fontWeight={700}>
+            {toDelete?.name}
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+            Esta acción no se puede deshacer.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteOpen(false)} disabled={deleting}>
+            Cancelar
+          </Button>
+          <Button color="error" variant="contained" onClick={confirmRemove} disabled={deleting}>
+            {deleting ? 'Eliminando...' : 'Eliminar'}
           </Button>
         </DialogActions>
       </Dialog>

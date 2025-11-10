@@ -4,9 +4,10 @@ import NavBar from './modules/layout/NavBar'
 import Login from './modules/auth/Login'
 import Register from './modules/auth/Register'
 import Spaces from './modules/spaces/Spaces'
-import MyBookings from './modules/bookings/MyBookings'
+import Bookings from './modules/bookings/Bookings'
 import AdminDashboard from './modules/admin/AdminDashboard'
 import AdminSpaces from './modules/admin/AdminSpaces'
+import AdminBookings from './modules/admin/AdminBookings'
 import { useAuth } from './context/AuthContext'
 import { USER_ROLE } from './types/enums'
 
@@ -58,13 +59,14 @@ export default function App() {
 
       <Route element={<RequireAuth />}>
         <Route element={<AppLayout />}>
-          <Route path="/spaces" element={<Spaces />} />
-          <Route path="/bookings" element={<MyBookings />} />
-
           <Route element={<RequireAdmin />}>
             <Route path="/admin" element={<AdminDashboard />} />
             <Route path="/admin/spaces" element={<AdminSpaces />} />
+            <Route path="/admin/bookings" element={<AdminBookings />} />
           </Route>
+
+          <Route path="/spaces" element={<Spaces />} />
+          <Route path="/bookings" element={<Bookings />} />
         </Route>
       </Route>
 

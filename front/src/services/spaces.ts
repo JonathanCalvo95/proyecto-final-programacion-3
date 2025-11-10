@@ -1,48 +1,31 @@
-import api from './api'
+import type { SpaceType } from '../types/enums'
 import type { Space } from '../types/space.types'
-
-function normalize(raw: any): Space {
-  return {
-    _id: raw._id,
-    name: raw.name,
-    type: raw.type,
-    capacity: raw.capacity,
-    hourlyRate: raw.hourlyRate,
-  }
-}
+import api from './api'
 
 export async function getSpaces(): Promise<Space[]> {
-  return await api.get('/spaces')
+  return api.get('/spaces')
 }
 
-export async function createSpace(input: {
+export async function createSpace(payload: {
   name: string
-  type: string
+  type: SpaceType
   capacity: number
   hourlyRate: number
-}): Promise<Space> {
-  const payload = { ...input, name: input.name }
-  const { data } = await api.post('/spaces', payload).catch(async () => await api.post('/api/spaces', payload))
-  return normalize(data)
+  active?: boolean
+}) {
+  const res = await api.post<Space>('/spaces', payload)
+  return res.data
 }
 
 export async function updateSpace(
   id: string,
-  input: Partial<{
-    name: string
-    type: string
-    capacity: number
-    hourlyRate: number
-  }>
-): Promise<Space> {
-  const payload: any = { ...input }
-  if (payload.name) payload.name = payload.name
-  const { data } = await api
-    .put(`/spaces/${id}`, payload)
-    .catch(async () => await api.put(`/api/spaces/${id}`, payload))
-  return normalize(data)
+  payload: Partial<{ name: string; type: SpaceType; capacity: number; hourlyRate: number; active: boolean }>
+) {
+  const res = await api.put<Space>(`/spaces/${id}`, payload)
+  return res.data
 }
 
-export async function deleteSpace(id: string): Promise<void> {
-  await api.delete(`/spaces/${id}`).catch(async () => await api.delete(`/api/spaces/${id}`))
+export async function deleteSpace(id: string) {
+  const res = await api.delete<{ ok: boolean }>(`/spaces/${id}`)
+  return res.data
 }
