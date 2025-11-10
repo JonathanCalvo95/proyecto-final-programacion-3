@@ -134,11 +134,9 @@ router.patch(
       if (booking.status === BOOKING_STATUS.CANCELED)
         return res.status(400).json({ message: "Ya cancelada" });
       if (booking.start <= new Date())
-        return res
-          .status(400)
-          .json({
-            message: "No se puede cancelar una reserva pasada o en curso",
-          });
+        return res.status(400).json({
+          message: "No se puede cancelar una reserva pasada o en curso",
+        });
       booking.status = BOOKING_STATUS.CANCELED;
       await booking.save();
       res.json(booking);

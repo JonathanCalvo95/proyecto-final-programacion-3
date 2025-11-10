@@ -1,10 +1,10 @@
-import { SpaceModel } from "../src/schemas/space";
+import Space from "../src/schemas/space";
 import User from "../src/schemas/user";
 import { USER_ROLE } from "../src/enums/role";
 import { SPACE_TYPE } from "../src/enums/space";
 
 export async function seedSpacesIfEmpty() {
-  const count = await SpaceModel.countDocuments();
+  const count = await Space.countDocuments();
   if (count > 0) return 0;
 
   const adminId = (await User.findOne({ role: USER_ROLE.ADMIN }))?.id;
@@ -54,7 +54,7 @@ export async function seedSpacesIfEmpty() {
     },
   ];
 
-  await SpaceModel.insertMany(spaces);
+  await Space.insertMany(spaces);
   console.log(`Espacios iniciales creados: ${spaces.length}`);
   return spaces.length;
 }

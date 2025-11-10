@@ -12,6 +12,74 @@ function requireAdmin(req: Request, res: Response, next: NextFunction) {
 }
 
 const WORKING_HOURS_PER_DAY = 8;
+const WORKDAY_START_HOUR = 9;
+const WORKDAY_END_HOUR = 17;
+
+function isWeekend(d: Date) {
+  const w = d.getDay();
+  return w === 0 || w === 6;
+}
+function startOfDay(d: Date) {
+  const x = new Date(d);
+  x.setHours(0, 0, 0, 0);
+  return x;
+}
+function addDays(d: Date, days: number) {
+  const x = new Date(d);
+  x.setDate(x.getDate() + days);
+  return x;
+}
+function countWorkdaysBetween(start: Date, end: Date) {
+  let count = 0;
+  let cursor = startOfDay(start);
+  const endDay = startOfDay(end);
+  while (cursor < endDay) {
+    if (!isWeekend(cursor)) count++;
+    cursor = addDays(cursor, 1);
+  }
+  return count;
+}
+function workdayBounds(d: Date) {
+  const s = startOfDay(d);
+  s.setHours(WORKDAY_START_HOUR, 0, 0, 0);
+  const e = startOfDay(d);
+  e.setHours(WORKDAY_END_HOUR, 0, 0, 0);
+  return { s, e };
+}
+function overlapMs(aStart: number, aEnd: number, bStart: number, bEnd: number) {
+  const s = Math.max(aStart, bStart);
+  const e = Math.min(aEnd, bEnd);
+  return Math.max(0, e - s);
+}
+function bookedBusinessHoursInWindow(
+  booking: { start: Date; end: Date },
+  winStart: Date,
+  winEnd: Date
+) {
+  let s = new Date(
+    Math.max(new Date(booking.start).getTime(), winStart.getTime())
+  );
+  const e = new Date(
+    Math.min(new Date(booking.end).getTime(), winEnd.getTime())
+  );
+  if (e <= s) return 0;
+
+  let hours = 0;
+  while (s < e) {
+    if (!isWeekend(s)) {
+      const { s: dayS, e: dayE } = workdayBounds(s);
+      const ms = overlapMs(
+        dayS.getTime(),
+        dayE.getTime(),
+        s.getTime(),
+        e.getTime()
+      );
+      hours += ms / 3_600_000;
+    }
+    s = addDays(startOfDay(s), 1);
+  }
+  return hours;
+}
 
 // GET /api/admin/metrics
 router.get(
@@ -21,7 +89,7 @@ router.get(
   async (_req, res, next) => {
     try {
       const now = new Date();
-      const since = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+      const until = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000); // próximos 30 días
 
       const totalSpaces = await Space.estimatedDocumentCount();
       const totalBookings = await Booking.countDocuments({
@@ -31,28 +99,25 @@ router.get(
       const bookings = await Booking.find(
         {
           status: { $ne: BOOKING_STATUS.CANCELED },
-          end: { $gt: since },
-          start: { $lt: now },
+          start: { $lt: until },
+          end: { $gt: now },
         },
         { start: 1, end: 1 }
       ).lean();
 
       let reservedHours = 0;
-      const sinceMs = since.getTime();
-      const nowMs = now.getTime();
-
       for (const b of bookings) {
-        const s = new Date((b as any).start).getTime();
-        const e = new Date((b as any).end).getTime();
-        const clipStart = Math.max(s, sinceMs);
-        const clipEnd = Math.min(e, nowMs);
-        if (clipEnd > clipStart) {
-          reservedHours += (clipEnd - clipStart) / (1000 * 60 * 60);
-        }
+        reservedHours += bookedBusinessHoursInWindow(
+          { start: (b as any).start, end: (b as any).end },
+          now,
+          until
+        );
       }
 
+      const workdays = countWorkdaysBetween(now, until);
       const denom =
-        totalSpaces > 0 ? totalSpaces * WORKING_HOURS_PER_DAY * 30 : 0;
+        totalSpaces > 0 ? totalSpaces * WORKING_HOURS_PER_DAY * workdays : 0;
+
       const rate = denom > 0 ? reservedHours / denom : 0;
       const occupancyRate = Math.max(0, Math.min(1, rate));
 

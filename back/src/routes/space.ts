@@ -5,7 +5,7 @@ import express, {
 } from "express";
 import { SPACE_TYPES, type SpaceType } from "../enums/space";
 import { USER_ROLE, type UserRole } from "../enums/role";
-import SpaceModel from "../schemas/space";
+import Space from "../schemas/space";
 import authentication from "../middlewares/authentication";
 import { Types } from "mongoose";
 
@@ -34,7 +34,7 @@ router.get("/", async (req: Request, res: Response, next: NextFunction) => {
       filter.type = t;
     }
 
-    const spaces = await SpaceModel.find(filter)
+    const spaces = await Space.find(filter)
       .sort({ createdAt: -1 })
       .lean()
       .exec();
@@ -48,7 +48,7 @@ router.get("/", async (req: Request, res: Response, next: NextFunction) => {
 // GET /spaces/:id
 router.get("/:id", async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const space = await SpaceModel.findById(req.params.id).lean().exec();
+    const space = await Space.findById(req.params.id).lean().exec();
     if (!space)
       return res.status(404).json({ message: "Espacio no encontrado" });
     res.json(space);
@@ -76,7 +76,7 @@ router.post(
       if (!SPACE_TYPES.includes(type as SpaceType)) {
         return res.status(400).json({ message: "Tipo inválido" });
       }
-      const created = await SpaceModel.create({
+      const created = await Space.create({
         name: String(name).trim(),
         type: type as SpaceType,
         capacity,
@@ -107,11 +107,9 @@ router.put(
       if (typeof body.hourlyRate === "number")
         allowed.hourlyRate = body.hourlyRate;
       if (typeof body.active === "boolean") allowed.active = body.active;
-      const updated = await SpaceModel.findByIdAndUpdate(
-        req.params.id,
-        allowed,
-        { new: true }
-      )
+      const updated = await Space.findByIdAndUpdate(req.params.id, allowed, {
+        new: true,
+      })
         .lean()
         .exec();
       if (!updated)
@@ -130,7 +128,7 @@ router.delete(
   ensureAdmin,
   async (req: AuthedRequest, res: Response, next: NextFunction) => {
     try {
-      const space = await SpaceModel.findById(req.params.id);
+      const space = await Space.findById(req.params.id);
       if (!space)
         return res.status(404).json({ message: "Espacio no encontrado" });
 

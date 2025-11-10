@@ -47,8 +47,4 @@ if (mongoose.models.Space) {
   mongoose.deleteModel("Space");
 }
 
-const SpaceModel: Model<ISpace> =
-  (models.Space as Model<ISpace>) || model<ISpace>("Space", schema);
-
-export default SpaceModel;
-export { SpaceModel };
+export default model<ISpace>("Space", schema);
