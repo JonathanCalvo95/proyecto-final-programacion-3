@@ -40,14 +40,14 @@ export async function seedSpacesIfEmpty() {
     },
     {
       name: "Oficina 1",
-      type: SPACE_TYPE.DESK,
+      type: SPACE_TYPE.PRIVATE_OFFICE,
       capacity: 6,
       hourlyRate: 10,
       createdBy: adminId,
     },
     {
       name: "Oficina 2",
-      type: SPACE_TYPE.DESK,
+      type: SPACE_TYPE.PRIVATE_OFFICE,
       capacity: 5,
       hourlyRate: 8,
       createdBy: adminId,

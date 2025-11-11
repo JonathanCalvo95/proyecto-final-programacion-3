@@ -91,7 +91,7 @@ router.get(
       const now = new Date();
       const until = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000); // próximos 30 días
 
-      const totalSpaces = await Space.estimatedDocumentCount();
+      const totalSpaces = await Space.countDocuments({ active: true });
       const totalBookings = await Booking.countDocuments({
         status: { $ne: BOOKING_STATUS.CANCELED },
       });

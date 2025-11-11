@@ -133,3 +133,13 @@ Se ejecuta al correr la aplicacion si no existen datos en las colecciones.
 ## Autor
 
 **Jonathan Calvo**
+
+proximas tareas
+
+agregar pantalla y coleccion de calificaciones de espacios
+agregar caracteristicas, contenido y amenities a los espacios
+agregar mas visual, componentesy ux al sitio en general
+darle mas cariño al dashboard, agregar graficos de barra y torta y algun dato mas
+remover reserva por horario
+agregar mas filtros para reservar
+agregar mas que cards y tablas

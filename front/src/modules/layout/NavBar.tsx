@@ -58,7 +58,7 @@ export default function NavBar() {
             </>
           )}
           <Button color="inherit" component={RouterLink} to="/spaces">
-            Espacios
+            Reservar Espacio
           </Button>
           {user && (
             <Button color="inherit" component={RouterLink} to="/bookings">

@@ -19,14 +19,18 @@ function ensureOwnerOrAdmin(
   res: Response,
   next: NextFunction
 ) {
-  if (isAdmin(req)) return next();
+  const bookingId = req.params.id;
   const userId = (req.user as any)?._id;
-  if (!userId) return res.status(401).send("Unauthenticated");
-  Booking.findById(req.params.id)
+
+  Booking.findById(bookingId)
     .then((r) => {
       if (!r) return res.status(404).send("Reserva no encontrada");
-      if (r.user.toString() !== userId.toString())
-        return res.status(403).send("Unauthorized");
+      // Si no es admin, validar propiedad
+      if (!isAdmin(req)) {
+        if (!userId) return res.status(401).send("Unauthenticated");
+        if (r.user.toString() !== userId?.toString())
+          return res.status(403).send("Unauthorized");
+      }
       (req as any).booking = r;
       next();
     })
@@ -99,10 +103,12 @@ router.post("/", authentication, async (req, res, next) => {
     if (!space || !space.active)
       return res.status(404).send("Espacio no encontrado");
 
+    // Conflicto: existencia de cualquier reserva activa (no cancelada) que se superpone
     const conflict = await Booking.findOne({
       space: spaceId,
-      status: BOOKING_STATUS.CONFIRMED,
-      $or: [{ start: { $lt: e }, end: { $gt: s } }],
+      status: { $ne: BOOKING_STATUS.CANCELED },
+      start: { $lt: e },
+      end: { $gt: s },
     });
     if (conflict) return res.status(409).send("Horario no disponible");
 
@@ -150,6 +156,7 @@ router.patch(
 router.patch(
   "/:id/confirm",
   authentication,
+  ensureAdmin,
   loadBooking,
   async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -197,10 +204,11 @@ router.patch(
       const space = await Space.findById(booking.space);
       if (!space) return res.status(404).send("Espacio no encontrado");
 
+      // Conflicto: otra reserva activa (no cancelada) superpuesta en el mismo espacio
       const conflict = await Booking.findOne({
         _id: { $ne: booking._id },
         space: booking.space,
-        status: BOOKING_STATUS.CONFIRMED,
+        status: { $ne: BOOKING_STATUS.CANCELED },
         start: { $lt: e },
         end: { $gt: s },
       });
