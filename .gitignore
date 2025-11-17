@@ -139,7 +139,6 @@ vite.config.ts.timestamp-*
 
 # Backend
 back/dist/
-back/logs/
 back/coverage/
 back/*.tsbuildinfo
 

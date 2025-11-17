@@ -1,5 +1,5 @@
 import { Document, Types } from "mongoose";
-import type { UserRole, GovernmentIdType } from "../enums";
+import type { UserRole } from "../enums";
 
 /* ===== Usuario ===== */
 export interface IUser extends Document {
@@ -9,7 +9,6 @@ export interface IUser extends Document {
   role: UserRole;
   firstName: string;
   lastName: string;
-  governmentId?: { type: GovernmentIdType; number: string };
   isActive: boolean;
   checkPassword(
     potentialPassword: string
@@ -45,7 +44,6 @@ export interface CreateUserRequest {
   role: UserRole;
   firstName: string;
   lastName: string;
-  governmentId?: { type: GovernmentIdType; number: string };
 }
 
 /* ===== Env ===== */

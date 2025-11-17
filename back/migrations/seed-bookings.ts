@@ -24,7 +24,6 @@ export async function seedBookingsIfEmpty(): Promise<number> {
     return d;
   };
 
-  // Durations in days (inclusive), end will be stored as exclusive (start + days)
   const baseSlots = [
     { d: 1, len: 1, status: BOOKING_STATUS.CONFIRMED },
     { d: 3, len: 2, status: BOOKING_STATUS.CANCELED },
@@ -45,7 +44,7 @@ export async function seedBookingsIfEmpty(): Promise<number> {
       baseSlots.forEach(({ d, len, status }) => {
         const daysOffset = d + clientIdx;
         const start = buildDateOnly(daysOffset);
-        const end = new Date(start.getTime() + len * 86400000); // exclusive end
+        const end = new Date(start.getTime() + len * 86400000);
         const days = (end.getTime() - start.getTime()) / 86400000;
         payload.push({
           user: client._id as Types.ObjectId,

@@ -208,7 +208,7 @@ router.patch(
           .status(400)
           .send("La fecha de inicio debe ser anterior a la fecha de fin");
 
-      // No se puede reprogramar si ya comenzó (día de inicio hoy o pasado)
+      // No se puede reprogramar si ya comenzó
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       if (booking.start <= today)

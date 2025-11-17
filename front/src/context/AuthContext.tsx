@@ -33,7 +33,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Sesión inicial
   useEffect(() => {
     let mounted = true
-    ;(async () => {
+    const shouldSkip = () => {
+      const path = window.location.pathname
+      return /login/i.test(path)
+    }
+    if (shouldSkip()) {
+      setLoading(false)
+      return () => {
+        mounted = false
+      }
+    }
+    ; (async () => {
       try {
         const profile = await authMe()
         if (!mounted) return

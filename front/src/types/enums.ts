@@ -32,9 +32,3 @@ export const BOOKING_STATUS = {
   CONFIRMED: 'confirmed',
   CANCELED: 'canceled',
 } as const satisfies Record<string, BookingStatus>
-
-/* =============================
-   PAYMENT STATUS
-============================= */
-export const PAYMENT_STATUSES = ['pending', 'paid', 'failed', 'refunded'] as const
-export type PaymentStatus = (typeof PAYMENT_STATUSES)[number]
