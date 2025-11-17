@@ -11,6 +11,7 @@ export async function getUser(id: string): Promise<User> {
 
 export async function createUser(payload: {
   firstName: string
+  lastName?: string
   email: string
   password: string
   role: string

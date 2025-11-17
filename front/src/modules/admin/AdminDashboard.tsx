@@ -342,7 +342,7 @@ export default function AdminDashboard() {
               Próximas reservas
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              Las reservas ordenadas por día (sin horario).
+              Las reservas ordenadas por día.
             </Typography>
 
             <Divider sx={{ my: 2 }} />

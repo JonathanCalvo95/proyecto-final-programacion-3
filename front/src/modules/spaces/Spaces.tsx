@@ -599,6 +599,22 @@ export default function Spaces() {
                             • Capacidad {s.capacity}
                           </Typography>
                         </Stack>
+                        {s.content && (
+                          <Typography
+                            variant="body2"
+                            color="text.secondary"
+                            sx={{
+                              mt: 0.5,
+                              fontSize: 12,
+                              display: '-webkit-box',
+                              WebkitLineClamp: 2,
+                              WebkitBoxOrient: 'vertical',
+                              overflow: 'hidden',
+                            }}
+                          >
+                            {s.content}
+                          </Typography>
+                        )}
                         {count > 0 && (
                           <Stack direction="row" spacing={0.5} alignItems="center">
                             <Star sx={{ fontSize: 16, color: theme.palette.warning.main }} />

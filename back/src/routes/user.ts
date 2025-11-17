@@ -180,8 +180,9 @@ async function deleteUser(
       return;
     }
 
-    await User.deleteOne({ _id: user._id });
-    res.send(`User deleted : ${req.params.id}`);
+    user.isActive = false;
+    await user.save();
+    res.send({ id: req.params.id, isActive: false });
   } catch (err) {
     next(err);
   }

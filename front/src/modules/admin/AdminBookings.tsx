@@ -451,13 +451,18 @@ export default function Bookings() {
             variant="contained"
             disabled={!current || !start || !end || !canCancel || end.startOf('day').isBefore(start.startOf('day'))}
             onClick={async () => {
-              await api.patch(`/bookings/${current!._id}/reschedule`, {
-                start: start!.format('YYYY-MM-DD'),
-                end: end!.format('YYYY-MM-DD'),
-              })
-              setOpen(false)
-              setSnack({ open: true, msg: 'Reserva reprogramada' })
-              load()
+              try {
+                await api.patch(`/bookings/${current!._id}/reschedule`, {
+                  start: start!.format('YYYY-MM-DD'),
+                  end: end!.format('YYYY-MM-DD'),
+                })
+                setOpen(false)
+                setSnack({ open: true, msg: 'Reserva reprogramada' })
+                load()
+              } catch (e: any) {
+                const msg = e?.response?.data?.message || e?.response?.data || e?.message || 'Error al reprogramar'
+                setSnack({ open: true, msg, error: true })
+              }
             }}
           >
             Guardar
@@ -508,9 +513,16 @@ export default function Bookings() {
         open={snack.open}
         onClose={() => setSnack({ open: false, msg: '' })}
         autoHideDuration={2500}
-        message={snack.msg}
         anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
-      />
+      >
+        <Alert
+          onClose={() => setSnack({ open: false, msg: '' })}
+          severity={snack.error ? 'error' : 'success'}
+          sx={{ width: '100%' }}
+        >
+          {snack.msg}
+        </Alert>
+      </Snackbar>
     </>
   )
 }

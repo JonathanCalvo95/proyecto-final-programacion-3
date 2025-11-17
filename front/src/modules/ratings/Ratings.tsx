@@ -26,6 +26,8 @@ import { getRatings, saveRating } from '../../services/ratings'
 import type { Space } from '../../types/space.types'
 import type { Rating } from '../../types/rating.types'
 import { useAuth } from '../../context/AuthContext'
+import type { SpaceType } from '../../types/enums'
+import { SPACE_TYPE_META } from '../../constants/spaceTypeMeta'
 
 export default function Ratings() {
   const theme = useTheme()
@@ -189,19 +191,18 @@ export default function Ratings() {
         return
       }
 
-      let updatedSpaceId: string | undefined
-      if (typeof r.space === 'string') {
-        updatedSpaceId = r.space
-      } else if (r.space && (r.space as any)._id) {
-        updatedSpaceId = String((r.space as any)._id)
-      } else {
-        updatedSpaceId = spaceId
-      }
+      const getUserId = (u: any) => (typeof u === 'string' ? String(u) : String(u?._id || u?.id || ''))
+      const getSpaceId = (s: any) => (typeof s === 'string' ? String(s) : String(s?._id || ''))
+
+      const newUserId = getUserId(r.user)
+      const newSpaceId = getSpaceId(r.space) || String(spaceId)
 
       const next = ratings.filter((x) => {
-        if (!x.space) return true
-        const existingSid = typeof x.space === 'string' ? x.space : (x.space as any)._id
-        return String(existingSid) !== String(updatedSpaceId)
+        if (x._id && r._id && String(x._id) === String(r._id)) return false
+        const isSameUser = getUserId(x.user) === newUserId
+        const isSameSpace = getSpaceId(x.space) === newSpaceId
+        if (isSameUser && isSameSpace) return false
+        return true
       })
 
       setRatings([r, ...next])
@@ -503,6 +504,8 @@ export default function Ratings() {
               const s =
                 typeof r.space === 'string' ? spaces.find((x) => x._id === r.space) : (r.space as Space | undefined)
               const color = getScoreColor(r.score)
+              const meta = s ? SPACE_TYPE_META[s.type as SpaceType] : undefined
+              const Icon = meta?.Icon
 
               return (
                 <Grid key={r._id} size={{ xs: 12, sm: 6, md: 4, lg: 3 }}>
@@ -517,9 +520,25 @@ export default function Ratings() {
                     }}
                   >
                     <CardHeader
+                      avatar={
+                        Icon ? (
+                          <Avatar
+                            sx={{
+                              bgcolor: meta
+                                ? alpha(theme.palette[meta.color].main, 0.16)
+                                : alpha(theme.palette.primary.main, 0.12),
+                              color: meta ? theme.palette[meta.color].main : theme.palette.primary.main,
+                              width: 32,
+                              height: 32,
+                            }}
+                          >
+                            <Icon fontSize="small" />
+                          </Avatar>
+                        ) : undefined
+                      }
                       title={s?.name || 'Espacio'}
                       sx={{ pb: 0.25 }}
-                      titleTypographyProps={{ variant: 'subtitle1' }}
+                      titleTypographyProps={{ variant: 'subtitle1', sx: { fontWeight: 700 } }}
                       action={<Chip size="small" color="primary" label="Mi calificación" />}
                     />
                     <CardContent sx={{ pt: 0.25, pb: 1 }}>
@@ -574,6 +593,8 @@ export default function Ratings() {
               userLabel = full || email || 'Usuario'
             }
             const color = getScoreColor(r.score)
+            const meta = s ? SPACE_TYPE_META[s.type as SpaceType] : undefined
+            const Icon = meta?.Icon
 
             return (
               <Grid key={r._id} size={{ xs: 12, sm: 6, md: 4, lg: 3 }}>
@@ -587,9 +608,25 @@ export default function Ratings() {
                   }}
                 >
                   <CardHeader
+                    avatar={
+                      Icon ? (
+                        <Avatar
+                          sx={{
+                            bgcolor: meta
+                              ? alpha(theme.palette[meta.color].main, 0.16)
+                              : alpha(theme.palette.primary.main, 0.12),
+                            color: meta ? theme.palette[meta.color].main : theme.palette.primary.main,
+                            width: 32,
+                            height: 32,
+                          }}
+                        >
+                          <Icon fontSize="small" />
+                        </Avatar>
+                      ) : undefined
+                    }
                     title={s?.name || 'Espacio'}
                     subheader={userLabel}
-                    titleTypographyProps={{ variant: 'subtitle1' }}
+                    titleTypographyProps={{ variant: 'subtitle1', sx: { fontWeight: 700 } }}
                     subheaderTypographyProps={{ variant: 'caption' }}
                     sx={{ pb: 0.25 }}
                   />

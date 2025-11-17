@@ -24,13 +24,14 @@ import {
   Divider,
 } from '@mui/material'
 import { alpha, useTheme } from '@mui/material/styles'
-import { getUsers, createUser, updateUser, deleteUser } from '../../services/users'
+import { getUsers, createUser, updateUser } from '../../services/users'
 import type { User } from '../../types/user.types'
 import { USER_ROLE } from '../../types/enums'
 import type { UserRole } from '../../types/enums'
 
 type FormState = {
   firstName: string
+  lastName: string
   email: string
   password: string
   role: UserRole
@@ -38,6 +39,7 @@ type FormState = {
 
 const EMPTY_FORM: FormState = {
   firstName: '',
+  lastName: '',
   email: '',
   password: '',
   role: USER_ROLE.CLIENT,
@@ -89,6 +91,7 @@ export default function AdminUsers() {
     setEditing(u)
     setForm({
       firstName: u.firstName || '',
+      lastName: u.lastName || '',
       email: u.email,
       password: '',
       role: u.role as UserRole,
@@ -108,12 +111,14 @@ export default function AdminUsers() {
       if (editing) {
         await updateUser(editing.id || (editing as any)._id, {
           firstName: form.firstName,
+          lastName: form.lastName,
           role: form.role,
           password: form.password || undefined,
         })
       } else {
         await createUser({
           firstName: form.firstName,
+          lastName: form.lastName || undefined,
           email: form.email,
           password: form.password,
           role: form.role,
@@ -137,7 +142,7 @@ export default function AdminUsers() {
     if (!deleteTarget) return
     setDeleting(true)
     try {
-      await deleteUser(deleteTarget.id || (deleteTarget as any)._id)
+      await updateUser(deleteTarget.id || (deleteTarget as any)._id, { isActive: false })
       setDeleteTarget(null)
       await load()
     } finally {
@@ -148,7 +153,7 @@ export default function AdminUsers() {
   const filtered = useMemo(() => {
     const s = q.trim().toLowerCase()
     return data.filter((u) => {
-      if (s && !`${u.firstName || ''} ${u.email}`.toLowerCase().includes(s)) return false
+      if (s && !`${u.firstName || ''} ${u.lastName || ''} ${u.email}`.toLowerCase().includes(s)) return false
       if (role && u.role !== role) return false
       return true
     })
@@ -237,6 +242,7 @@ export default function AdminUsers() {
             <TableRow>
               <TableCell width={56} sx={{ fontWeight: 700 }} />
               <TableCell sx={{ fontWeight: 700 }}>Nombre</TableCell>
+              <TableCell sx={{ fontWeight: 700 }}>Apellido</TableCell>
               <TableCell sx={{ fontWeight: 700 }}>Email</TableCell>
               <TableCell sx={{ fontWeight: 700 }}>Rol</TableCell>
               <TableCell align="right" sx={{ fontWeight: 700 }}>
@@ -248,7 +254,7 @@ export default function AdminUsers() {
           <TableBody>
             {filtered.length === 0 && (
               <TableRow>
-                <TableCell colSpan={5}>
+                <TableCell colSpan={6}>
                   <Alert severity="info" sx={{ my: 2 }}>
                     No se encontraron usuarios que coincidan con los filtros.
                   </Alert>
@@ -271,6 +277,11 @@ export default function AdminUsers() {
                     </Typography>
                   </TableCell>
                   <TableCell>
+                    <Typography variant="body2" fontWeight={500}>
+                      {u.lastName || ''}
+                    </Typography>
+                  </TableCell>
+                  <TableCell>
                     <Typography variant="body2" color="text.secondary">
                       {u.email}
                     </Typography>
@@ -284,7 +295,7 @@ export default function AdminUsers() {
                         Editar
                       </Button>
                       <Button size="small" color="error" onClick={() => confirmDelete(u)}>
-                        Eliminar
+                        Desactivar
                       </Button>
                     </Stack>
                   </TableCell>
@@ -306,6 +317,13 @@ export default function AdminUsers() {
             margin="normal"
             value={form.firstName}
             onChange={(e) => setForm((f) => ({ ...f, firstName: e.target.value }))}
+          />
+          <TextField
+            label="Apellido"
+            fullWidth
+            margin="normal"
+            value={form.lastName}
+            onChange={(e) => setForm((f) => ({ ...f, lastName: e.target.value }))}
           />
           {!editing && (
             <TextField
@@ -351,11 +369,11 @@ export default function AdminUsers() {
 
       {/* DIALOG eliminar (también con Divider) */}
       <Dialog open={!!deleteTarget} onClose={() => (deleting ? null : setDeleteTarget(null))} maxWidth="xs" fullWidth>
-        <DialogTitle>Eliminar usuario</DialogTitle>
+        <DialogTitle>Desactivar usuario</DialogTitle>
         <Divider />
         <DialogContent sx={{ pt: 2 }}>
           <Typography>
-            ¿Seguro que querés eliminar al usuario <strong>{deleteTarget?.firstName || deleteTarget?.email}</strong>?
+            ¿Seguro que querés desactivar al usuario <strong>{deleteTarget?.firstName || deleteTarget?.email}</strong>?
           </Typography>
         </DialogContent>
         <DialogActions sx={{ p: 2 }}>
@@ -363,7 +381,7 @@ export default function AdminUsers() {
             Cancelar
           </Button>
           <Button color="error" variant="contained" onClick={handleDelete} disabled={deleting}>
-            {deleting ? 'Eliminando...' : 'Eliminar'}
+            {deleting ? 'Desactivando...' : 'Desactivar'}
           </Button>
         </DialogActions>
       </Dialog>
