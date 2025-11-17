@@ -5,7 +5,10 @@ export interface Space {
   name: string
   type: SpaceType
   capacity: number
-  hourlyRate: number
+  dailyRate: number
+  content?: string
+  characteristics?: string[]
+  amenities?: string[]
   active?: boolean
   createdBy?: string
   createdAt?: string

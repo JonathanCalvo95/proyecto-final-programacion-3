@@ -7,6 +7,7 @@ import { AppThemeProvider } from './theme/ThemeProvider'
 import { AuthProvider } from './context/AuthContext'
 import { ErrorBoundary } from 'react-error-boundary'
 import App from './App'
+import './index.css'
 
 function Fallback({ error }: { error: unknown }) {
   return (

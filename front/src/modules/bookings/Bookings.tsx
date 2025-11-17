@@ -20,8 +20,11 @@ import {
   Tooltip,
   Typography,
   Box,
+  TextField,
+  MenuItem,
+  Divider,
 } from '@mui/material'
-import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker'
+import { DatePicker } from '@mui/x-date-pickers/DatePicker'
 import dayjs from 'dayjs'
 import { getMyBookings, cancelBooking, confirmBooking } from '../../services/bookings'
 import api from '../../services/api'
@@ -29,6 +32,7 @@ import type { Booking } from '../../types/booking.types'
 import type { BookingStatus } from '../../types/enums'
 import { EditCalendar, Cancel, CheckCircle } from '@mui/icons-material'
 import { useAuth } from '../../context/AuthContext'
+import { alpha, useTheme } from '@mui/material/styles'
 
 const statusColor: Record<
   BookingStatus,
@@ -42,18 +46,33 @@ const statusColor: Record<
 const money = (v: number) => v.toLocaleString('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 })
 
 export default function Bookings() {
+  const theme = useTheme()
+  const { user } = useAuth()
+
   const [data, setData] = useState<Booking[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+
   const [open, setOpen] = useState(false)
   const [current, setCurrent] = useState<Booking | null>(null)
   const [start, setStart] = useState<dayjs.Dayjs | null>(null)
   const [end, setEnd] = useState<dayjs.Dayjs | null>(null)
-  const [snack, setSnack] = useState<{ open: boolean; msg: string; error?: boolean }>({ open: false, msg: '' })
+
   const [cancelOpen, setCancelOpen] = useState(false)
   const [toCancel, setToCancel] = useState<Booking | null>(null)
   const [deleting, setDeleting] = useState(false)
-  const { user } = useAuth()
+
+  const [snack, setSnack] = useState<{ open: boolean; msg: string; error?: boolean }>({
+    open: false,
+    msg: '',
+  })
+
+  const [q, setQ] = useState('')
+  const [status, setStatus] = useState<'' | BookingStatus>('')
+  const [from, setFrom] = useState<dayjs.Dayjs | null>(null)
+  const [to, setTo] = useState<dayjs.Dayjs | null>(null)
+
+  const today = dayjs().startOf('day')
 
   const load = async () => {
     setLoading(true)
@@ -73,11 +92,10 @@ export default function Bookings() {
     load()
   }, [])
 
-  const now = dayjs()
   const canCancel = useMemo(() => {
     if (!current) return false
-    return dayjs(current.start).isAfter(now)
-  }, [current, now])
+    return dayjs(current.start).startOf('day').isAfter(today)
+  }, [current, today])
 
   async function cancel(id: string) {
     try {
@@ -85,7 +103,11 @@ export default function Bookings() {
       setSnack({ open: true, msg: 'Reserva cancelada' })
       load()
     } catch (e: any) {
-      setSnack({ open: true, msg: e?.response?.data?.message || 'Error al cancelar', error: true })
+      setSnack({
+        open: true,
+        msg: e?.response?.data?.message || 'Error al cancelar',
+        error: true,
+      })
     }
   }
 
@@ -110,15 +132,19 @@ export default function Bookings() {
     if (!current || !start || !end) return
     try {
       await api.patch(`/bookings/${current._id}/reschedule`, {
-        start: start.toISOString(),
-        end: end.toISOString(),
+        start: start.format('YYYY-MM-DD'),
+        end: end.format('YYYY-MM-DD'),
       })
       setOpen(false)
       setCurrent(null)
       setSnack({ open: true, msg: 'Reserva reprogramada' })
       load()
     } catch (e: any) {
-      setSnack({ open: true, msg: e?.response?.data?.message || 'Error al reprogramar', error: true })
+      setSnack({
+        open: true,
+        msg: e?.response?.data?.message || 'Error al reprogramar',
+        error: true,
+      })
     }
   }
 
@@ -128,35 +154,145 @@ export default function Bookings() {
       setSnack({ open: true, msg: 'Reserva confirmada' })
       load()
     } catch (e: any) {
-      setSnack({ open: true, msg: e?.response?.data?.message || 'Error al confirmar', error: true })
+      setSnack({
+        open: true,
+        msg: e?.response?.data?.message || 'Error al confirmar',
+        error: true,
+      })
     }
   }
 
+  const list = Array.isArray(data) ? data : []
+
+  const filtered = useMemo(() => {
+    const ql = q.trim().toLowerCase()
+
+    return list.filter((r) => {
+      if (status && r.status !== status) return false
+
+      if (ql) {
+        const spaceName = typeof r.space === 'string' ? '' : (r.space as any)?.name || ''
+        if (!spaceName.toLowerCase().includes(ql)) return false
+      }
+
+      if (from || to) {
+        const bStart = dayjs(r.start).startOf('day')
+        const bEndIncl = dayjs(r.end).subtract(1, 'day').endOf('day')
+        const f = from ? from.startOf('day') : null
+        const t = to ? to.endOf('day') : null
+        const overlaps =
+          (!f || bEndIncl.isSame(f) || bEndIncl.isAfter(f)) && (!t || bStart.isSame(t) || bStart.isBefore(t))
+
+        if (!overlaps) return false
+      }
+
+      return true
+    })
+  }, [list, q, status, from, to])
+
   if (loading) {
     return (
-      <TableContainer component={Paper}>
-        <Stack alignItems="center" sx={{ p: 3 }}>
-          <CircularProgress />
-        </Stack>
-      </TableContainer>
+      <Box display="flex" justifyContent="center" mt={8}>
+        <CircularProgress />
+      </Box>
     )
   }
 
   if (error) {
     return (
-      <TableContainer component={Paper}>
-        <Alert severity="error" sx={{ m: 2 }}>
-          {error}
-        </Alert>
-      </TableContainer>
+      <Paper sx={{ p: 3, borderRadius: 3 }}>
+        <Alert severity="error">{error}</Alert>
+      </Paper>
     )
   }
 
-  const list = Array.isArray(data) ? data : []
-
   return (
     <>
-      <TableContainer component={Paper} sx={{ borderRadius: 3 }}>
+      {/* HEADER */}
+      <Box sx={{ mb: 3 }}>
+        <Typography variant="h5" fontWeight={700}>
+          Mis reservas
+        </Typography>
+        <Typography variant="body2" color="text.secondary">
+          Revisá, filtrá y gestioná tus reservas activas y pasadas.
+        </Typography>
+      </Box>
+
+      {/* FILTROS */}
+      <Paper
+        sx={{
+          p: 2,
+          mb: 3,
+          borderRadius: 3,
+          border: `1px solid ${alpha(theme.palette.divider, 0.4)}`,
+        }}
+      >
+        <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems={{ md: 'center' }}>
+          <TextField
+            label="Buscar"
+            placeholder="Nombre del espacio"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            size="small"
+            sx={{ minWidth: 220 }}
+          />
+
+          <TextField
+            label="Estado"
+            select
+            size="small"
+            value={status}
+            onChange={(e) => setStatus(e.target.value as any)}
+            sx={{ width: 180 }}
+          >
+            <MenuItem value="">Todos</MenuItem>
+            <MenuItem value="pending">Pendiente</MenuItem>
+            <MenuItem value="confirmed">Confirmada</MenuItem>
+            <MenuItem value="canceled">Cancelada</MenuItem>
+          </TextField>
+
+          <DatePicker
+            label="Desde"
+            value={from}
+            onChange={setFrom}
+            format="DD/MM/YYYY"
+            shouldDisableDate={(date) => {
+              const d = date.day()
+              return d === 0 || d === 6
+            }}
+            slotProps={{ textField: { size: 'small' } }}
+          />
+          <DatePicker
+            label="Hasta"
+            value={to}
+            minDate={from || undefined}
+            onChange={setTo}
+            format="DD/MM/YYYY"
+            shouldDisableDate={(date) => {
+              const d = date.day()
+              return d === 0 || d === 6
+            }}
+            slotProps={{ textField: { size: 'small' } }}
+          />
+
+          <Box flex={1} />
+
+          <Button
+            variant="outlined"
+            onClick={() => {
+              setQ('')
+              setStatus('')
+              setFrom(null)
+              setTo(null)
+            }}
+          >
+            Limpiar filtros
+          </Button>
+        </Stack>
+      </Paper>
+
+      {/* TABLA */}
+      <TableContainer component={Paper} sx={{ borderRadius: 2 }}>
         <Table size="small" stickyHeader>
           <TableHead>
             <TableRow>
@@ -170,16 +306,21 @@ export default function Bookings() {
               </TableCell>
             </TableRow>
           </TableHead>
+
           <TableBody>
-            {list.length === 0 && (
+            {filtered.length === 0 && (
               <TableRow>
                 <TableCell colSpan={6}>
-                  <Alert severity="info">No tenés reservas.</Alert>
+                  <Alert severity="info" sx={{ my: 2 }}>
+                    No tenés reservas que coincidan con los filtros.
+                  </Alert>
                 </TableCell>
               </TableRow>
             )}
-            {list.map((r) => {
-              const isPast = !dayjs(r.start).isAfter(now)
+
+            {filtered.map((r) => {
+              const isPast = !dayjs(r.start).isAfter(today)
+
               return (
                 <TableRow key={r._id} hover>
                   <TableCell>
@@ -190,8 +331,8 @@ export default function Bookings() {
                       #{r._id.slice(-6)}
                     </Typography>
                   </TableCell>
-                  <TableCell>{dayjs(r.start).format('YYYY-MM-DD HH:mm')}</TableCell>
-                  <TableCell>{dayjs(r.end).format('YYYY-MM-DD HH:mm')}</TableCell>
+                  <TableCell>{dayjs(r.start).format('DD/MM/YYYY')}</TableCell>
+                  <TableCell>{dayjs(r.end).subtract(1, 'day').format('DD/MM/YYYY')}</TableCell>
                   <TableCell>{money(r.amount)}</TableCell>
                   <TableCell>
                     <Chip
@@ -221,6 +362,7 @@ export default function Bookings() {
                           </Button>
                         </span>
                       </Tooltip>
+
                       <Tooltip title={isPast ? 'No disponible' : 'Cancelar'}>
                         <span>
                           <Button
@@ -235,6 +377,7 @@ export default function Bookings() {
                           </Button>
                         </span>
                       </Tooltip>
+
                       {user?.role === 'admin' && r.status === 'pending' && (
                         <Tooltip title="Confirmar">
                           <span>
@@ -259,64 +402,83 @@ export default function Bookings() {
         </Table>
       </TableContainer>
 
+      {/* DIALOG REPROGRAMAR */}
       <Dialog open={open} onClose={() => setOpen(false)}>
-        <DialogTitle>Reprogramar</DialogTitle>
-        <DialogContent sx={{ pt: 1 }}>
-          <Stack spacing={2} sx={{ mt: 1 }}>
-            <DateTimePicker label="Inicio" value={start} onChange={setStart} ampm={false} minutesStep={15} />
-            <DateTimePicker
+        <DialogTitle>Reprogramar reserva</DialogTitle>
+        <Divider />
+        <DialogContent sx={{ pt: 2 }}>
+          <Stack spacing={2}>
+            <DatePicker
+              label="Inicio"
+              value={start}
+              onChange={setStart}
+              disablePast
+              format="DD/MM/YYYY"
+              shouldDisableDate={(date) => {
+                const d = date.day()
+                return d === 0 || d === 6
+              }}
+            />
+            <DatePicker
               label="Fin"
               value={end}
+              minDate={start || undefined}
               onChange={setEnd}
-              ampm={false}
-              minutesStep={15}
-              minDateTime={start || undefined}
+              format="DD/MM/YYYY"
+              shouldDisableDate={(date) => {
+                const d = date.day()
+                return d === 0 || d === 6
+              }}
             />
           </Stack>
           <Box sx={{ mt: 1 }}>
             <Typography variant="caption" color="text.secondary">
-              Debe ser una fecha futura y el fin posterior al inicio.
+              Debe ser una fecha futura y el fin posterior o igual al inicio.
             </Typography>
           </Box>
         </DialogContent>
-        <DialogActions>
+        <DialogActions sx={{ p: 2 }}>
           <Button onClick={() => setOpen(false)}>Cerrar</Button>
           <Button
             onClick={reschedule}
             variant="contained"
-            disabled={!current || !start || !end || !canCancel || !end.isAfter(start)}
+            disabled={!current || !start || !end || !canCancel || end.startOf('day').isBefore(start.startOf('day'))}
           >
             Guardar
           </Button>
         </DialogActions>
       </Dialog>
 
-      {/* Dialog confirmar cancelación */}
+      {/* DIALOG CANCELAR */}
       <Dialog open={cancelOpen} onClose={() => !deleting && setCancelOpen(false)}>
         <DialogTitle>Cancelar reserva</DialogTitle>
-        <DialogContent sx={{ pt: 1 }}>
+        <Divider />
+        <DialogContent sx={{ pt: 2 }}>
           <Stack spacing={1}>
             <Typography variant="body2">
               ¿Seguro que deseas cancelar la reserva
               {toCancel && (
                 <>
+                  {' '}
                   del espacio{' '}
                   <strong>{typeof toCancel.space === 'string' ? toCancel.space : toCancel.space.name}</strong>?
                 </>
               )}
             </Typography>
+
             {toCancel && (
               <Typography variant="caption" color="text.secondary">
-                Inicio: {dayjs(toCancel.start).format('YYYY-MM-DD HH:mm')} | Fin:{' '}
-                {dayjs(toCancel.end).format('YYYY-MM-DD HH:mm')}
+                Inicio: {dayjs(toCancel.start).format('DD/MM/YYYY')} — Fin:{' '}
+                {dayjs(toCancel.end).subtract(1, 'day').format('DD/MM/YYYY')}
               </Typography>
             )}
+
             <Alert severity="warning" sx={{ mt: 1 }} variant="outlined">
               Esta acción no se puede deshacer.
             </Alert>
           </Stack>
         </DialogContent>
-        <DialogActions>
+        <DialogActions sx={{ p: 2 }}>
           <Button onClick={() => setCancelOpen(false)} disabled={deleting}>
             Cerrar
           </Button>
@@ -326,14 +488,21 @@ export default function Bookings() {
         </DialogActions>
       </Dialog>
 
+      {/* SNACKBAR */}
       <Snackbar
         open={snack.open}
-        onClose={() => setSnack({ open: false, msg: '' })}
         autoHideDuration={2500}
-        message={snack.msg}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-        color={snack.error ? 'error' : (undefined as any)}
-      />
+        onClose={() => setSnack({ open: false, msg: '' })}
+        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+      >
+        <Alert
+          onClose={() => setSnack({ open: false, msg: '' })}
+          severity={snack.error ? 'error' : 'success'}
+          sx={{ width: '100%' }}
+        >
+          {snack.msg}
+        </Alert>
+      </Snackbar>
     </>
   )
 }

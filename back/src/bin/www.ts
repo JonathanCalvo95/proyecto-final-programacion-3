@@ -3,6 +3,7 @@ import app from "../app";
 import { connectDB } from "../config/db";
 import { ensureInitialData } from "../../migrations/setup-initial-data";
 import { seedBookingsIfEmpty } from "../../migrations/seed-bookings";
+import { seedRatingsIfEmpty } from "../../migrations/seed-ratings";
 
 const port = env.port;
 
@@ -13,7 +14,6 @@ const port = env.port;
 
     await ensureInitialData();
 
-    // Seed de reservas (requiere usuario 'client' preexistente)
     try {
       const created = await seedBookingsIfEmpty();
       if (created > 0) {
@@ -21,6 +21,13 @@ const port = env.port;
       }
     } catch (e: any) {
       console.warn("Seed de reservas omitido:", e?.message || e);
+    }
+
+    try {
+      const created = await seedRatingsIfEmpty();
+      if (created > 0) console.log(`Calificaciones iniciales creadas: ${created}`);
+    } catch (e: any) {
+      console.warn("Seed de calificaciones omitido:", e?.message || e);
     }
 
     const server = app.listen(port, () => console.log(`API on :${port}`));

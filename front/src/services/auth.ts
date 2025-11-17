@@ -5,10 +5,6 @@ export async function login(email: string, password: string): Promise<void> {
   await api.post('/auth/login', { email, password })
 }
 
-export async function register(firstName: string, email: string, password: string): Promise<void> {
-  await api.post('/auth/register', { firstName, email, password })
-}
-
 export async function me(): Promise<User> {
   return await api.get('/auth/me')
 }

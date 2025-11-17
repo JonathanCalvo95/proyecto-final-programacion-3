@@ -1,12 +1,11 @@
 import React, { createContext, useContext, useEffect, useState } from 'react'
 import type { User } from '../types/user.types'
-import { login as authLogin, register as authRegister, me as authMe, logout as authLogout } from '../services/auth'
+import { login as authLogin, me as authMe, logout as authLogout } from '../services/auth'
 
 type AuthCtx = {
   user: User | null
   loading: boolean
   login: (email: string, password: string) => Promise<void>
-  register: (firstName: string, email: string, password: string) => Promise<void>
   logout: () => Promise<void>
 }
 
@@ -58,12 +57,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(normalizeUser(profile))
   }
 
-  async function register(firstName: string, email: string, password: string) {
-    await authRegister(firstName, email, password)
-    const profile = await authMe()
-    setUser(normalizeUser(profile))
-  }
-
   async function logout() {
     try {
       await authLogout()
@@ -72,7 +65,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  return <Context.Provider value={{ user, loading, login, register, logout }}>{children}</Context.Provider>
+  return <Context.Provider value={{ user, loading, login, logout }}>{children}</Context.Provider>
 }
 
 export function useAuth() {

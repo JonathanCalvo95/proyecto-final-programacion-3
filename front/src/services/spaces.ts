@@ -10,22 +10,39 @@ export async function createSpace(payload: {
   name: string
   type: SpaceType
   capacity: number
-  hourlyRate: number
+  dailyRate: number
+  content?: string
+  characteristics?: string[]
+  amenities?: string[]
   active?: boolean
 }) {
-  const res = await api.post<Space>('/spaces', payload)
-  return res.data
+  return api.post<Space>('/spaces', payload)
 }
 
 export async function updateSpace(
   id: string,
-  payload: Partial<{ name: string; type: SpaceType; capacity: number; hourlyRate: number; active: boolean }>
+  payload: Partial<{
+    name: string
+    type: SpaceType
+    capacity: number
+    dailyRate: number
+    content: string
+    characteristics: string[]
+    amenities: string[]
+    active: boolean
+  }>
 ) {
-  const res = await api.put<Space>(`/spaces/${id}`, payload)
-  return res.data
+  return api.put<Space>(`/spaces/${id}`, payload)
+}
+
+export async function getSpacesAvailability(start: string, end: string): Promise<string[]> {
+  const data = (await api.get('/spaces/availability', {
+    params: { start: start.toString(), end: end.toString() },
+  })) as { available: string[] }
+
+  return data.available ?? []
 }
 
 export async function deleteSpace(id: string) {
-  const res = await api.delete<{ ok: boolean }>(`/spaces/${id}`)
-  return res.data
+  await api.delete<{ ok: boolean }>(`/spaces/${id}`)
 }

@@ -15,36 +15,6 @@ const cookieOpts = {
   path: "/",
 };
 
-// Registro de usuario (cliente por defecto)
-router.post("/register", async (req, res) => {
-  try {
-    const { firstName, email, password } = req.body ?? {};
-    if (!firstName || !email || !password) {
-      return res.status(400).json({ error: "Faltan campos requeridos" });
-    }
-    const exists = await User.findOne({ email });
-    if (exists)
-      return res.status(409).json({ error: "El email ya está registrado" });
-
-    const hashed = await bcrypt.hash(password, 10);
-    const user = await User.create({
-      firstName: firstName,
-      email,
-      password: hashed,
-      role: "client",
-    });
-
-    res.status(201).json({
-      id: user._id,
-      firstName: user.firstName,
-      email: user.email,
-      role: user.role,
-    });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Error en el registro" });
-  }
-});
 
 // Login
 router.post("/login", async (req, res) => {

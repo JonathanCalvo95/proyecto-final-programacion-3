@@ -1,11 +1,11 @@
-# Sistema de Gestión de Espacios de Coworking (MERN + TypeScript)
+# 🧭 Sistema de Gestión de Espacios de Coworking (MERN + TypeScript)
 
 Monorepo que contiene **backend (back)** y **frontend (front)** de un sistema de reservas de espacios de coworking.  
 Proyecto realizado para la materia **Programación 3 - 2025**.
 
 ---
 
-## Tecnologías principales
+## 🚀 Tecnologías principales
 
 - **Backend (back):** Node.js · Express · TypeScript · MongoDB (Mongoose)
 - **Frontend (front):** React · Vite · TypeScript · MUI Design
@@ -13,7 +13,7 @@ Proyecto realizado para la materia **Programación 3 - 2025**.
 
 ---
 
-## Requisitos previos
+## 📦 Requisitos previos
 
 - Node.js 18 o superior
 - MongoDB 6 o superior
@@ -21,7 +21,7 @@ Proyecto realizado para la materia **Programación 3 - 2025**.
 
 ---
 
-## Estructura del proyecto
+## 🗂️ Estructura del proyecto
 
 ```
 .
@@ -31,7 +31,7 @@ Proyecto realizado para la materia **Programación 3 - 2025**.
 
 ---
 
-## Variables de entorno
+## 🔧 Variables de entorno
 
 Ubicadas en archivos `.env`:
 
@@ -40,7 +40,7 @@ Ubicadas en archivos `.env`:
 
 ---
 
-## Ejecución en desarrollo
+## ▶️ Ejecución en desarrollo
 
 Abrir **dos terminales**:
 
@@ -62,12 +62,12 @@ npm run dev
 
 **URLs**
 
-- Frontend: [http://localhost:5173](http://localhost:5173)
+- Frontend: [http://localhost:5174](http://localhost:5174)
 - Backend: [http://localhost:4000](http://localhost:4000)
 
 ---
 
-**Credenciales iniciales:**
+**🔐 Credenciales iniciales:**
 
 - admin: `admin@cowork.com` / `Admin123!`
 - cliente1: `client1@cowork.com` / `Client123!`
@@ -75,29 +75,32 @@ npm run dev
 
 ---
 
-## Endpoints principales (BACK)
+## 🔌 Endpoints principales (BACK)
 
-| Método | Ruta                             | Descripción               |
-| ------ | -------------------------------- | ------------------------- |
-| POST   | `/api/auth/login`                | Login y JWT               |
-| GET    | `/api/auth/me`                   | Perfil del usuario        |
-| POST   | `/api/auth/logout`               | Cerrar sesion             |
-| GET    | `/api/spaces`                    | Listar espacios activos   |
-| POST   | `/api/spaces`                    | Crear espacio (admin)     |
-| PUT    | `/api/spaces`                    | Modifica espacio (admin)  |
-| DELETE | `/api/spaces`                    | Eliminar espacio (admin)  |
-| GET    | `/api/bookings`                  | Listar reservas (admin)   |
-| GET    | `/api/bookings/my`               | Listar mis reservas       |
-| POST   | `/api/bookings`                  | Reservar un espacio       |
-| PATCH  | `/api/bookings/:id/confirm`      | Confirmar reserva         |
-| PATCH  | `/api/bookings/:id/reschedule`   | Reprogramar reserva       |
-| PATCH  | `/api/bookings/:id/cancel`       | Cancelar reserva          |
-| GET    | `/api/admin/metrics`             | Métricas (admin)          |
-| GET    | `/api/admin/top-spaces`          | Top reservas (admin)      |
+| Método | Ruta                             | Descripción                   |
+| ------ | -------------------------------- | -------------------------     |
+| POST   | `/api/auth/login`                | Login y JWT                   |
+| GET    | `/api/auth/me`                   | Perfil del usuario            |
+| POST   | `/api/auth/logout`               | Cerrar sesion                 |
+| GET    | `/api/spaces`                    | Listar espacios activos       |
+| GET    | `/api/spaces/availability`       | IDs disponibles               |
+| POST   | `/api/spaces`                    | Crear espacio (admin)         |
+| PUT    | `/api/spaces`                    | Modifica espacio (admin)      |
+| DELETE | `/api/spaces`                    | Eliminar espacio (admin)      |
+| GET    | `/api/bookings`                  | Listar reservas (admin)       |
+| GET    | `/api/bookings/my`               | Listar mis reservas           |
+| POST   | `/api/bookings`                  | Reservar un espacio           |
+| PATCH  | `/api/bookings/:id/confirm`      | Confirmar reserva             |
+| PATCH  | `/api/bookings/:id/reschedule`   | Reprogramar reserva           |
+| PATCH  | `/api/bookings/:id/cancel`       | Cancelar reserva              |
+| GET    | `/api/admin/metrics`             | Métricas (admin)              |
+| GET    | `/api/admin/top-spaces`          | Top reservas (admin)          |
+| GET    | `/api/ratings`                   | Listar calificaciones         |
+| POST   | `/api/ratings`                   | Crear/actualizar calificación |
 
 ---
 
-## Rutas principales (FRONT)
+## 🧭 Rutas principales (FRONT)
 
 | Ruta              | Descripción                   |
 | ----------------- | ----------------------------- |
@@ -108,38 +111,30 @@ npm run dev
 | `/admin/bookings` | Géstion de reservas (admin)   |
 | `/spaces`         | Listar espacios               |
 | `/bookings`       | Listar mis reservas           |
+| `/ratings`        | Calificaciones                |
 
 ---
 
-## Funcionalidades principales
+## ✨ Funcionalidades principales
 
 - Login con JWT
 - Roles: administrador / cliente
 - CRUD de espacios (admin)
-- Reservas con validación de disponibilidad
+- Reservas por día con validación de disponibilidad y bloqueo inmediato del espacio
 - Cancelación antes de la fecha
 - Métricas y top espacios más reservados
+- Calificaciones con promedio por espacio
 - Log de errores (en `back/logs/`)
 - Ruteo con mínimo 5 páginas en el frontend
 
 ---
 
-## Migración inicial (seed)
+## 🌱 Migración inicial (seed)
 
 Se ejecuta al correr la aplicacion si no existen datos en las colecciones.
 
 ---
 
-## Autor
+## 👤 Autor
 
 **Jonathan Calvo**
-
-proximas tareas
-
-agregar pantalla y coleccion de calificaciones de espacios
-agregar caracteristicas, contenido y amenities a los espacios
-agregar mas visual, componentesy ux al sitio en general
-darle mas cariño al dashboard, agregar graficos de barra y torta y algun dato mas
-remover reserva por horario
-agregar mas filtros para reservar
-agregar mas que cards y tablas

@@ -1,11 +1,4 @@
-import mongoose, {
-  Schema,
-  model,
-  Document,
-  Types,
-  Model,
-  models,
-} from "mongoose";
+import mongoose, { Schema, model, Document, Types } from "mongoose";
 import { SpaceType, SPACE_TYPES } from "../enums";
 
 export interface ISpace extends Document {
@@ -13,8 +6,10 @@ export interface ISpace extends Document {
   name: string;
   type: SpaceType;
   capacity: number;
-  hourlyRate: number;
-  amenities: string[];
+  dailyRate: number;
+  content?: string;
+  characteristics?: string[];
+  amenities?: string[];
   active: boolean;
   createdBy: Types.ObjectId;
   createdAt: Date;
@@ -31,7 +26,10 @@ const schema = new Schema<ISpace>(
       index: true,
     },
     capacity: { type: Number, required: true, min: 1 },
-    hourlyRate: { type: Number, required: true, min: 0 },
+    dailyRate: { type: Number, required: true, min: 0 },
+    content: { type: String, default: "" },
+    characteristics: { type: [String], default: [] },
+    amenities: { type: [String], default: [] },
     active: { type: Boolean, default: true, index: true },
     createdBy: {
       type: Schema.Types.ObjectId,

@@ -22,35 +22,39 @@ import {
   Avatar,
   Tooltip,
 } from '@mui/material'
-import { MeetingRoom, Desk, Apartment, Edit, Delete } from '@mui/icons-material'
-import { alpha } from '@mui/material/styles'
+import { MeetingRoom, Edit, Delete, Add } from '@mui/icons-material'
+import { alpha, useTheme } from '@mui/material/styles'
 import { getSpaces, createSpace, updateSpace, deleteSpace } from '../../services/spaces'
 import type { Space } from '../../types/space.types'
 import { SPACE_TYPE, type SpaceType } from '../../types/enums'
+import { SPACE_TYPE_META as TYPE_META } from '../../constants/spaceTypeMeta'
 
 type SpaceForm = {
   name: string
   type: SpaceType
   capacity: number
-  hourlyRate: number
+  dailyRate: number
+  content: string
+  characteristicsInput: string
+  amenitiesInput: string
 }
 
 const EMPTY_FORM: SpaceForm = {
   name: '',
   type: SPACE_TYPE.MEETING_ROOM,
   capacity: 1,
-  hourlyRate: 0,
+  dailyRate: 0,
+  content: '',
+  characteristicsInput: '',
+  amenitiesInput: '',
 }
 
-const TYPE_META: Record<SpaceType, { label: string; Icon: any; color: 'primary' | 'success' | 'warning' }> = {
-  meeting_room: { label: 'Sala de reunión', Icon: MeetingRoom, color: 'primary' },
-  desk: { label: 'Escritorio', Icon: Desk, color: 'success' },
-  private_office: { label: 'Oficina privada', Icon: Apartment, color: 'warning' },
-}
+// Centralizado en constants/spaceTypeMeta.ts
 
 const money = (v: number) => v.toLocaleString('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 })
 
 export default function AdminSpaces() {
+  const theme = useTheme()
   const [data, setData] = useState<Space[]>([])
   const [open, setOpen] = useState(false)
   const [editing, setEditing] = useState<Space | null>(null)
@@ -58,7 +62,6 @@ export default function AdminSpaces() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [form, setForm] = useState<SpaceForm>(EMPTY_FORM)
-  // Modal de eliminación
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [toDelete, setToDelete] = useState<Space | null>(null)
   const [deleting, setDeleting] = useState(false)
@@ -92,7 +95,10 @@ export default function AdminSpaces() {
       name: s.name ?? '',
       type: s.type as SpaceForm['type'],
       capacity: s.capacity,
-      hourlyRate: s.hourlyRate,
+      dailyRate: (s as any).dailyRate || ((s as any).hourlyRate ? (s as any).hourlyRate * 24 : 0),
+      content: (s as any).content || '',
+      characteristicsInput: Array.isArray((s as any).characteristics) ? (s as any).characteristics.join(', ') : '',
+      amenitiesInput: Array.isArray((s as any).amenities) ? (s as any).amenities.join(', ') : '',
     })
     setOpen(true)
   }
@@ -104,7 +110,16 @@ export default function AdminSpaces() {
       name: form.name.trim(),
       type: form.type,
       capacity: Number(form.capacity) || 0,
-      hourlyRate: Number(form.hourlyRate) || 0,
+      dailyRate: Number(form.dailyRate) || 0,
+      content: form.content?.trim() || '',
+      characteristics: form.characteristicsInput
+        .split(',')
+        .map((x) => x.trim())
+        .filter(Boolean),
+      amenities: form.amenitiesInput
+        .split(',')
+        .map((x) => x.trim())
+        .filter(Boolean),
     }
     try {
       if (editing) {
@@ -123,13 +138,11 @@ export default function AdminSpaces() {
     }
   }
 
-  // Abrir modal de eliminación
   function askRemove(s: Space) {
     setToDelete(s)
     setDeleteOpen(true)
   }
 
-  // Confirmar eliminación
   async function confirmRemove() {
     if (!toDelete) return
     setDeleting(true)
@@ -148,11 +161,36 @@ export default function AdminSpaces() {
 
   return (
     <>
-      <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
-        <Button variant="contained" onClick={openNew}>
-          Nuevo espacio
-        </Button>
-      </Stack>
+      <Box sx={{ mb: 3 }}>
+        <Stack
+          direction={{ xs: 'column', sm: 'row' }}
+          alignItems={{ xs: 'flex-start', sm: 'center' }}
+          justifyContent="space-between"
+          spacing={2}
+        >
+          <Box>
+            <Typography variant="h5" fontWeight={700}>
+              Gestionar espacios
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Configurá espacios disponibles para reservas.
+            </Typography>
+          </Box>
+          <Button
+            variant="contained"
+            startIcon={<Add />}
+            onClick={openNew}
+            sx={{
+              borderRadius: 999,
+              px: 3,
+              py: 1,
+              fontWeight: 600,
+            }}
+          >
+            Nuevo espacio
+          </Button>
+        </Stack>
+      </Box>
 
       {loading && (
         <Box display="flex" justifyContent="center" my={4}>
@@ -170,16 +208,24 @@ export default function AdminSpaces() {
           const meta = TYPE_META[s.type as SpaceType] ?? TYPE_META.meeting_room
           const Icon = meta.Icon
           return (
-            <Grid size={{ xs: 12, md: 6 }} key={s._id}>
+            <Grid size={{ xs: 12, sm: 6, md: 4, lg: 3 }} key={s._id}>
               <Card
                 sx={{
                   borderRadius: 3,
-                  boxShadow: 1,
                   height: '100%',
-                  transition: 'all .2s ease',
-                  '&:hover': { boxShadow: 4, transform: 'translateY(-2px)' },
                   outline: '1px solid',
-                  outlineColor: (t) => alpha(t.palette.divider, 0.6),
+                  outlineColor: alpha(theme.palette.divider, 0.7),
+                  boxShadow: '0 18px 40px rgba(15,23,42,0.06)',
+                  background: (t) =>
+                    `linear-gradient(135deg, ${alpha(t.palette[meta.color].main, 0.06)}, ${
+                      t.palette.background.paper
+                    })`,
+                  transition: 'border-color 150ms ease, box-shadow 150ms ease, transform 150ms ease',
+                  '&:hover': {
+                    outlineColor: alpha(theme.palette[meta.color].main, 0.7),
+                    boxShadow: '0 22px 55px rgba(15,23,42,0.12)',
+                    transform: 'translateY(-2px)',
+                  },
                 }}
               >
                 <CardHeader
@@ -188,6 +234,9 @@ export default function AdminSpaces() {
                       sx={(t) => ({
                         bgcolor: alpha(t.palette[meta.color].main, 0.15),
                         color: t.palette[meta.color].main,
+                        width: 32,
+                        height: 32,
+                        '& .MuiSvgIcon-root': { fontSize: 18 },
                       })}
                     >
                       <Icon />
@@ -199,20 +248,50 @@ export default function AdminSpaces() {
                   subheader={meta.label}
                   sx={{ pb: 1, '& .MuiCardHeader-title': { fontWeight: 600 } }}
                 />
-                <CardContent sx={{ pt: 0 }}>
-                  <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                    <Chip size="small" label={`Capacidad: ${s.capacity}`} color={meta.color} variant="outlined" />
-                    <Chip size="small" label={`Tarifa: ${money(s.hourlyRate)}/h`} variant="outlined" />
+                <CardContent sx={{ pt: 0, pb: 1.5 }}>
+                  <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
+                    <Chip
+                      size="small"
+                      label={`Capacidad: ${s.capacity}`}
+                      color={meta.color}
+                      variant="outlined"
+                      sx={{ fontWeight: 500 }}
+                    />
+                    <Chip
+                      size="small"
+                      label={`Tarifa: ${money((s as any).dailyRate || 0)}/día`}
+                      variant="outlined"
+                      sx={{ fontWeight: 500 }}
+                    />
                   </Stack>
-                  <Divider sx={{ my: 1.5 }} />
+                  {(s as any).content && (
+                    <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                      {String((s as any).content).length > 140
+                        ? `${String((s as any).content).slice(0, 140)}...`
+                        : String((s as any).content)}
+                    </Typography>
+                  )}
+                  <Divider sx={{ my: 1.2 }} />
+                  {Array.isArray((s as any).amenities) && (s as any).amenities.length > 0 && (
+                    <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap sx={{ mb: 1 }}>
+                      {((s as any).amenities as string[]).slice(0, 3).map((a, idx) => (
+                        <Chip key={idx} size="small" label={a} variant="outlined" />
+                      ))}
+                    </Stack>
+                  )}
                   <Stack direction="row" justifyContent="flex-end" spacing={1}>
                     <Tooltip title="Editar">
-                      <Button size="small" startIcon={<Edit />} onClick={() => openEdit(s)}>
+                      <Button size="small" startIcon={<Edit fontSize="small" />} onClick={() => openEdit(s)}>
                         Editar
                       </Button>
                     </Tooltip>
                     <Tooltip title="Eliminar">
-                      <Button size="small" color="error" startIcon={<Delete />} onClick={() => askRemove(s)}>
+                      <Button
+                        size="small"
+                        color="error"
+                        startIcon={<Delete fontSize="small" />}
+                        onClick={() => askRemove(s)}
+                      >
                         Eliminar
                       </Button>
                     </Tooltip>
@@ -224,12 +303,34 @@ export default function AdminSpaces() {
         })}
         {!loading && data.length === 0 && !error && (
           <Grid size={{ xs: 12 }}>
-            <Paper variant="outlined" sx={{ p: 4, textAlign: 'center', borderRadius: 3, color: 'text.secondary' }}>
+            <Paper
+              variant="outlined"
+              sx={{
+                p: 5,
+                textAlign: 'center',
+                borderRadius: 4,
+                color: 'text.secondary',
+                maxWidth: 520,
+                mx: 'auto',
+              }}
+            >
+              <Avatar
+                sx={(t) => ({
+                  width: 56,
+                  height: 56,
+                  mb: 2,
+                  mx: 'auto',
+                  bgcolor: alpha(t.palette.primary.main, 0.1),
+                  color: t.palette.primary.main,
+                })}
+              >
+                <MeetingRoom />
+              </Avatar>
               <Typography variant="subtitle1" fontWeight={600} gutterBottom>
-                No hay espacios
+                No hay espacios configurados
               </Typography>
-              <Typography variant="body2" sx={{ mb: 2 }}>
-                Creá tu primer espacio para empezar a reservar.
+              <Typography variant="body2" sx={{ mb: 2.5 }}>
+                Creá tu primer espacio para empezar a recibir reservas.
               </Typography>
               <Button variant="contained" onClick={openNew}>
                 Nuevo espacio
@@ -239,7 +340,6 @@ export default function AdminSpaces() {
         )}
       </Grid>
 
-      {/* Modal Crear/Editar */}
       <Dialog open={open} onClose={() => setOpen(false)} fullWidth maxWidth="sm">
         <DialogTitle>{editing ? 'Editar espacio' : 'Nuevo espacio'}</DialogTitle>
         <DialogContent sx={{ pt: 1 }}>
@@ -259,9 +359,9 @@ export default function AdminSpaces() {
             value={form.type}
             onChange={(e) => setForm({ ...form, type: e.target.value as SpaceForm['type'] })}
           >
-            <MenuItem value="meeting_room">Sala de reunión</MenuItem>
-            <MenuItem value="desk">Escritorio</MenuItem>
-            <MenuItem value="private_office">Oficina privada</MenuItem>
+            <MenuItem value="meeting_room">{TYPE_META.meeting_room.label}</MenuItem>
+            <MenuItem value="desk">{TYPE_META.desk.label}</MenuItem>
+            <MenuItem value="private_office">{TYPE_META.private_office.label}</MenuItem>
           </TextField>
           <TextField
             label="Capacidad"
@@ -272,12 +372,37 @@ export default function AdminSpaces() {
             onChange={(e) => setForm({ ...form, capacity: Number(e.target.value) })}
           />
           <TextField
-            label="Tarifa por hora"
+            label="Tarifa por día"
             type="number"
             fullWidth
             margin="normal"
-            value={form.hourlyRate}
-            onChange={(e) => setForm({ ...form, hourlyRate: Number(e.target.value) })}
+            value={form.dailyRate}
+            onChange={(e) => setForm({ ...form, dailyRate: Number(e.target.value) })}
+          />
+          <TextField
+            label="Descripción / contenido"
+            fullWidth
+            margin="normal"
+            multiline
+            minRows={3}
+            value={form.content}
+            onChange={(e) => setForm({ ...form, content: e.target.value })}
+          />
+          <TextField
+            label="Características (separadas por coma)"
+            fullWidth
+            margin="normal"
+            placeholder="Ej: Luminosa, Acústica, Ventana"
+            value={form.characteristicsInput}
+            onChange={(e) => setForm({ ...form, characteristicsInput: e.target.value })}
+          />
+          <TextField
+            label="Amenities (separados por coma)"
+            fullWidth
+            margin="normal"
+            placeholder="Ej: WiFi, Proyector, Pizarrón"
+            value={form.amenitiesInput}
+            onChange={(e) => setForm({ ...form, amenitiesInput: e.target.value })}
           />
         </DialogContent>
         <DialogActions>
@@ -290,7 +415,6 @@ export default function AdminSpaces() {
         </DialogActions>
       </Dialog>
 
-      {/* Modal Confirmar Eliminar */}
       <Dialog open={deleteOpen} onClose={() => !deleting && setDeleteOpen(false)} fullWidth maxWidth="xs">
         <DialogTitle>Eliminar espacio</DialogTitle>
         <DialogContent sx={{ pt: 1 }}>

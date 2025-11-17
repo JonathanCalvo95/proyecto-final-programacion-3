@@ -88,16 +88,23 @@ router.post("/", authentication, async (req, res, next) => {
     const { spaceId, start, end } = req.body ?? {};
     if (!spaceId || !start || !end)
       return res.status(400).send("Falta campos obligatorios");
-    const s = new Date(start);
-    const e = new Date(end);
-    if (isNaN(s.getTime()) || isNaN(e.getTime()))
-      return res.status(400).send("Format de fecha inválido");
+
+    const parseDateOnly = (d: string) => new Date(`${d}T00:00:00`);
+    const s = parseDateOnly(String(start));
+    const endInclusive = parseDateOnly(String(end));
+    if (isNaN(s.getTime()) || isNaN(endInclusive.getTime()))
+      return res.status(400).send("Formato de fecha inválido");
+    const e = new Date(endInclusive.getTime() + 24 * 3600000); // exclusive end
+
     if (s >= e)
       return res
         .status(400)
-        .send("Fecha de inicio debe ser antes de fecha de fin");
-    if (s < new Date())
-      return res.status(400).send("Fecha de inicio debe ser futura");
+        .send("La fecha de inicio debe ser anterior a la fecha de fin");
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (s < today)
+      return res.status(400).send("La fecha de inicio debe ser futura");
 
     const space = await Space.findById(spaceId);
     if (!space || !space.active)
@@ -110,10 +117,10 @@ router.post("/", authentication, async (req, res, next) => {
       start: { $lt: e },
       end: { $gt: s },
     });
-    if (conflict) return res.status(409).send("Horario no disponible");
+    if (conflict) return res.status(409).send("Fecha no disponible");
 
-    const hours = (e.getTime() - s.getTime()) / 3600000;
-    const amount = Math.round(hours * space.hourlyRate * 100) / 100;
+    const days = (e.getTime() - s.getTime()) / 86400000;
+    const amount = Math.round(days * (space.dailyRate || 0) * 100) / 100;
 
     const booking = await Booking.create({
       user: (req.user as any)?._id,
@@ -139,7 +146,9 @@ router.patch(
       const booking = (req as any).booking;
       if (booking.status === BOOKING_STATUS.CANCELED)
         return res.status(400).json({ message: "Ya cancelada" });
-      if (booking.start <= new Date())
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      if (booking.start <= today)
         return res.status(400).json({
           message: "No se puede cancelar una reserva pasada o en curso",
         });
@@ -186,20 +195,26 @@ router.patch(
       const booking = (req as any).booking;
       const { start, end } = req.body ?? {};
       if (!start || !end)
-        return res.status(400).send("Falta campos obligatorios");
+        return res.status(400).send("Faltan campos obligatorios");
 
-      const s = new Date(start);
-      const e = new Date(end);
-      if (isNaN(s.getTime()) || isNaN(e.getTime()))
+      const parseDateOnly = (d: string) => new Date(`${d}T00:00:00`);
+      const s = parseDateOnly(String(start));
+      const endInclusive = parseDateOnly(String(end));
+      if (isNaN(s.getTime()) || isNaN(endInclusive.getTime()))
         return res.status(400).send("Formato de fecha inválido");
+      const e = new Date(endInclusive.getTime() + 24 * 3600000);
       if (s >= e)
         return res
           .status(400)
-          .send("Fecha de inicio debe ser antes de fecha de fin");
-      if (booking.start <= new Date())
+          .send("La fecha de inicio debe ser anterior a la fecha de fin");
+
+      // No se puede reprogramar si ya comenzó (día de inicio hoy o pasado)
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      if (booking.start <= today)
         return res
           .status(400)
-          .send("No se puede reprogramar una reserva pasada u en curso");
+          .send("No se puede reprogramar una reserva pasada o en curso");
 
       const space = await Space.findById(booking.space);
       if (!space) return res.status(404).send("Espacio no encontrado");
@@ -212,13 +227,13 @@ router.patch(
         start: { $lt: e },
         end: { $gt: s },
       });
-      if (conflict) return res.status(409).send("Horario no disponible");
+      if (conflict) return res.status(409).send("Fecha no disponible");
 
       booking.start = s;
       booking.end = e;
 
-      const hours = (e.getTime() - s.getTime()) / 3600000;
-      booking.amount = Math.round(hours * (space.hourlyRate || 0) * 100) / 100;
+      const days = (e.getTime() - s.getTime()) / 86400000;
+      booking.amount = Math.round(days * (space.dailyRate || 0) * 100) / 100;
 
       await booking.save();
       res.json(booking);

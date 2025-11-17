@@ -17,18 +17,18 @@ export async function seedBookingsIfEmpty(): Promise<number> {
   const spaces = await Space.find();
   if (spaces.length === 0) return 0;
 
-  const buildDate = (daysAhead: number, hour: number) => {
+  const buildDateOnly = (daysAhead: number) => {
     const d = new Date();
     d.setHours(0, 0, 0, 0);
     d.setDate(d.getDate() + daysAhead);
-    d.setHours(hour, 0, 0, 0);
     return d;
   };
 
+  // Durations in days (inclusive), end will be stored as exclusive (start + days)
   const baseSlots = [
-    { d: 1, h1: 9, h2: 11, status: BOOKING_STATUS.CONFIRMED },
-    { d: 2, h1: 14, h2: 16, status: BOOKING_STATUS.CANCELED },
-    { d: 3, h1: 10, h2: 13, status: BOOKING_STATUS.PENDING },
+    { d: 1, len: 1, status: BOOKING_STATUS.CONFIRMED },
+    { d: 3, len: 2, status: BOOKING_STATUS.CANCELED },
+    { d: 6, len: 3, status: BOOKING_STATUS.PENDING },
   ] as const;
 
   const payload: {
@@ -42,18 +42,18 @@ export async function seedBookingsIfEmpty(): Promise<number> {
 
   clients.forEach((client, clientIdx) => {
     spaces.forEach((sp) => {
-      baseSlots.forEach(({ d, h1, h2, status }) => {
+      baseSlots.forEach(({ d, len, status }) => {
         const daysOffset = d + clientIdx;
-        const start = buildDate(daysOffset, h1);
-        const end = buildDate(daysOffset, h2);
-        const hours = (end.getTime() - start.getTime()) / 3600000;
+        const start = buildDateOnly(daysOffset);
+        const end = new Date(start.getTime() + len * 86400000); // exclusive end
+        const days = (end.getTime() - start.getTime()) / 86400000;
         payload.push({
           user: client._id as Types.ObjectId,
           space: sp._id as Types.ObjectId,
           start,
           end,
           status,
-          amount: Math.round((sp.hourlyRate || 0) * hours * 100) / 100,
+          amount: Math.round(((sp as any).dailyRate || 0) * days * 100) / 100,
         });
       });
     });
