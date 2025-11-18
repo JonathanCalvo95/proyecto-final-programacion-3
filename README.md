@@ -138,3 +138,13 @@ Se ejecuta al correr la aplicacion si no existen datos en las colecciones.
 ## 👤 Autor
 
 **Jonathan Calvo**
+
+proximas tareas
+
+agregar modulo de pagos con card para cargar datos de tarjeta
+en reservar espacio ordenar por los disponibles y mostrar los precios mas grandes y poder ordenarlos
+agregar modales de confirmacion para acciones principales como reservar y otras pantallas
+revisar tema de estados en reservas
+hacer amenities como enum fijo  
+remover pantallas de reservar espacio y mis reservas para admin
+en calificaciones remover cards de informacion para los clientes

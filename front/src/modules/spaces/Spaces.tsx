@@ -76,7 +76,7 @@ export default function Spaces() {
 
   // carga inicial de espacios + ratings
   useEffect(() => {
-    ;(async () => {
+    ; (async () => {
       try {
         const [list, sums] = await Promise.all([getSpaces(), getRatingsSummary()])
         const merged = asArray(list).map((s: any) => {
@@ -178,7 +178,6 @@ export default function Spaces() {
         setAvailabilityLoading(false)
         setAvailabilityFetched(true)
       })
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [start, end, disableReserve])
 
   // cantidad “real” de espacios disponibles (para el chip de arriba)
@@ -192,9 +191,39 @@ export default function Spaces() {
     (type ? 1 : 0) + (minCap > 1 ? 1 : 0) + charFilters.length + amenityFilters.length + (start && end ? 1 : 0)
 
   function quickRange(daysCount: number) {
-    const base = dayjs().add(1, 'day').startOf('day')
+    const isWeekend = (d: dayjs.Dayjs) => {
+      const dow = d.day()
+      return dow === 0 || dow === 6
+    }
+
+    const nextBusinessDay = (d: dayjs.Dayjs) => {
+      let cur = d.startOf('day')
+      while (isWeekend(cur)) cur = cur.add(1, 'day')
+      return cur
+    }
+
+    const addBusinessDays = (d: dayjs.Dayjs, n: number) => {
+      let cur = d
+      let added = 0
+      while (added < n) {
+        cur = cur.add(1, 'day')
+        if (!isWeekend(cur)) added++
+      }
+      return cur
+    }
+
+    // base: siguiente día hábil
+    const base = nextBusinessDay(dayjs().add(1, 'day'))
+    let end: dayjs.Dayjs
+    if (daysCount === 5) {
+      const dow = base.day() // 1..5 garantizado
+      const deltaToFriday = Math.max(0, 5 - dow)
+      end = base.add(deltaToFriday, 'day')
+    } else {
+      end = addBusinessDays(base, Math.max(0, daysCount - 1))
+    }
     setStart(base)
-    setEnd(base.add(daysCount - 1, 'day'))
+    setEnd(end)
   }
 
   function clearAll() {
