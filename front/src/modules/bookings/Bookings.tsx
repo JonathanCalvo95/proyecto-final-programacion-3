@@ -7,10 +7,6 @@ import {
   TableCell,
   TableBody,
   Button,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
   Chip,
   Stack,
   Paper,
@@ -22,26 +18,18 @@ import {
   Box,
   TextField,
   MenuItem,
-  Divider,
 } from '@mui/material'
 import { DatePicker } from '@mui/x-date-pickers/DatePicker'
 import dayjs from 'dayjs'
-import { getMyBookings, cancelBooking, confirmBooking } from '../../services/bookings'
-import api from '../../services/api'
+import { getMyBookings, cancelBooking } from '../../services/bookings'
+import { getMyPayments } from '../../services/payments'
+import type { Payment } from '../../types/payment.types'
+import ConfirmDialog from '../../components/ConfirmDialog'
 import type { Booking } from '../../types/booking.types'
-import type { BookingStatus } from '../../types/enums'
-import { EditCalendar, Cancel, CheckCircle } from '@mui/icons-material'
+import { Cancel, CreditCard } from '@mui/icons-material'
 import { useAuth } from '../../context/AuthContext'
 import { alpha, useTheme } from '@mui/material/styles'
-
-const statusColor: Record<
-  BookingStatus,
-  { label: string; color: 'default' | 'success' | 'warning' | 'error' | 'info' }
-> = {
-  pending: { label: 'Pendiente', color: 'warning' },
-  confirmed: { label: 'Confirmada', color: 'success' },
-  canceled: { label: 'Cancelada', color: 'error' },
-}
+import { BOOKING_STATE_CHIP_COLOR, type BookingStateLabel } from '../../types/enums'
 
 const money = (v: number) => v.toLocaleString('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 })
 
@@ -53,11 +41,6 @@ export default function Bookings() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  const [open, setOpen] = useState(false)
-  const [current, setCurrent] = useState<Booking | null>(null)
-  const [start, setStart] = useState<dayjs.Dayjs | null>(null)
-  const [end, setEnd] = useState<dayjs.Dayjs | null>(null)
-
   const [cancelOpen, setCancelOpen] = useState(false)
   const [toCancel, setToCancel] = useState<Booking | null>(null)
   const [deleting, setDeleting] = useState(false)
@@ -68,11 +51,34 @@ export default function Bookings() {
   })
 
   const [q, setQ] = useState('')
-  const [status, setStatus] = useState<'' | BookingStatus>('')
+  const [estadoFilter, setEstadoFilter] = useState<'' | BookingStateLabel>('')
   const [from, setFrom] = useState<dayjs.Dayjs | null>(null)
   const [to, setTo] = useState<dayjs.Dayjs | null>(null)
 
+  const [payments, setPayments] = useState<Payment[]>([])
+  const paymentMap = useMemo(() => {
+    const m: Record<string, Payment> = {}
+    payments.forEach((p) => {
+      if (p.booking) m[p.booking] = p
+    })
+    return m
+  }, [payments])
+
   const today = dayjs().startOf('day')
+  const todayValue = today.valueOf()
+
+  const deriveEstado = (b: Booking): BookingStateLabel => {
+    if (b.status === 'canceled') return 'Cancelada'
+
+    const payment = paymentMap[b._id]
+    const endExclusive = dayjs(b.end)
+
+    if (!payment && endExclusive.valueOf() <= todayValue) {
+      return 'Vencida'
+    }
+    if (payment) return 'Pagada'
+    return 'Pendiente de pago'
+  }
 
   const load = async () => {
     setLoading(true)
@@ -90,12 +96,10 @@ export default function Bookings() {
 
   useEffect(() => {
     load()
+    getMyPayments()
+      .then((list) => setPayments(Array.isArray(list) ? list : []))
+      .catch(() => setPayments([]))
   }, [])
-
-  const canCancel = useMemo(() => {
-    if (!current) return false
-    return dayjs(current.start).startOf('day').isAfter(today)
-  }, [current, today])
 
   async function cancel(id: string) {
     try {
@@ -128,47 +132,13 @@ export default function Bookings() {
     }
   }
 
-  async function reschedule() {
-    if (!current || !start || !end) return
-    try {
-      await api.patch(`/bookings/${current._id}/reschedule`, {
-        start: start.format('YYYY-MM-DD'),
-        end: end.format('YYYY-MM-DD'),
-      })
-      setOpen(false)
-      setCurrent(null)
-      setSnack({ open: true, msg: 'Reserva reprogramada' })
-      load()
-    } catch (e: any) {
-      setSnack({
-        open: true,
-        msg: e?.response?.data?.message || 'Error al reprogramar',
-        error: true,
-      })
-    }
-  }
-
-  async function doConfirm(id: string) {
-    try {
-      await confirmBooking(id)
-      setSnack({ open: true, msg: 'Reserva confirmada' })
-      load()
-    } catch (e: any) {
-      setSnack({
-        open: true,
-        msg: e?.response?.data?.message || 'Error al confirmar',
-        error: true,
-      })
-    }
-  }
-
   const list = Array.isArray(data) ? data : []
 
   const filtered = useMemo(() => {
     const ql = q.trim().toLowerCase()
 
     return list.filter((r) => {
-      if (status && r.status !== status) return false
+      if (estadoFilter && deriveEstado(r) !== estadoFilter) return false
 
       if (ql) {
         const spaceName = typeof r.space === 'string' ? '' : (r.space as any)?.name || ''
@@ -188,7 +158,7 @@ export default function Bookings() {
 
       return true
     })
-  }, [list, q, status, from, to])
+  }, [list, q, estadoFilter, from, to, paymentMap, todayValue])
 
   if (loading) {
     return (
@@ -241,14 +211,15 @@ export default function Bookings() {
             label="Estado"
             select
             size="small"
-            value={status}
-            onChange={(e) => setStatus(e.target.value as any)}
-            sx={{ width: 180 }}
+            value={estadoFilter}
+            onChange={(e) => setEstadoFilter(e.target.value as any)}
+            sx={{ width: 200 }}
           >
             <MenuItem value="">Todos</MenuItem>
-            <MenuItem value="pending">Pendiente</MenuItem>
-            <MenuItem value="confirmed">Confirmada</MenuItem>
-            <MenuItem value="canceled">Cancelada</MenuItem>
+            <MenuItem value="Pendiente de pago">Pendiente de pago</MenuItem>
+            <MenuItem value="Pagada">Pagada</MenuItem>
+            <MenuItem value="Cancelada">Cancelada</MenuItem>
+            <MenuItem value="Vencida">Vencida</MenuItem>
           </TextField>
 
           <DatePicker
@@ -281,7 +252,7 @@ export default function Bookings() {
             variant="outlined"
             onClick={() => {
               setQ('')
-              setStatus('')
+              setEstadoFilter('')
               setFrom(null)
               setTo(null)
             }}
@@ -310,7 +281,7 @@ export default function Bookings() {
           <TableBody>
             {filtered.length === 0 && (
               <TableRow>
-                <TableCell colSpan={6}>
+                <TableCell colSpan={7}>
                   <Alert severity="info" sx={{ my: 2 }}>
                     No tenés reservas que coincidan con los filtros.
                   </Alert>
@@ -320,12 +291,15 @@ export default function Bookings() {
 
             {filtered.map((r) => {
               const isPast = !dayjs(r.start).isAfter(today)
+              const canCancelRow = dayjs(r.start).startOf('day').isAfter(today) && r.status !== 'canceled'
+              const estado = deriveEstado(r)
+              const payment = paymentMap[r._id]
 
               return (
                 <TableRow key={r._id} hover>
                   <TableCell>
                     <Typography variant="body2" fontWeight={600}>
-                      {typeof r.space === 'string' ? r.space : r.space.name}
+                      {typeof r.space === 'string' ? r.space : (r.space as any).name}
                     </Typography>
                     <Typography variant="caption" color="text.secondary">
                       #{r._id.slice(-6)}
@@ -335,34 +309,33 @@ export default function Bookings() {
                   <TableCell>{dayjs(r.end).subtract(1, 'day').format('DD/MM/YYYY')}</TableCell>
                   <TableCell>{money(r.amount)}</TableCell>
                   <TableCell>
-                    <Chip
-                      size="small"
-                      label={statusColor[r.status].label}
-                      color={statusColor[r.status].color}
-                      variant="outlined"
-                    />
+                    {payment ? (
+                      <Tooltip
+                        title={`Pagada: ${payment.brand} ****${payment.last4} · ${dayjs(payment.createdAt).format(
+                          'DD/MM/YYYY'
+                        )}`}
+                      >
+                        <Chip size="small" label={estado} color={BOOKING_STATE_CHIP_COLOR[estado]} variant="outlined" />
+                      </Tooltip>
+                    ) : (
+                      <Chip size="small" label={estado} color={BOOKING_STATE_CHIP_COLOR[estado]} variant="outlined" />
+                    )}
                   </TableCell>
                   <TableCell align="right">
                     <Stack direction="row" spacing={1} justifyContent="flex-end">
-                      <Tooltip title="Reprogramar">
+                      <Tooltip title="Ver detalle">
                         <span>
                           <Button
                             size="small"
                             variant="outlined"
-                            startIcon={<EditCalendar />}
-                            disabled={isPast || r.status === 'canceled'}
                             onClick={() => {
-                              setCurrent(r)
-                              setStart(dayjs(r.start))
-                              setEnd(dayjs(r.end))
-                              setOpen(true)
+                              window.location.href = `/bookings/${r._id}`
                             }}
                           >
-                            Reprogramar
+                            Detalle
                           </Button>
                         </span>
                       </Tooltip>
-
                       <Tooltip title={isPast ? 'No disponible' : 'Cancelar'}>
                         <span>
                           <Button
@@ -370,7 +343,7 @@ export default function Bookings() {
                             variant="outlined"
                             color="error"
                             startIcon={<Cancel />}
-                            disabled={isPast || r.status === 'canceled'}
+                            disabled={!canCancelRow}
                             onClick={() => openCancelDialog(r)}
                           >
                             Cancelar
@@ -378,17 +351,19 @@ export default function Bookings() {
                         </span>
                       </Tooltip>
 
-                      {user?.role === 'admin' && r.status === 'pending' && (
-                        <Tooltip title="Confirmar">
+                      {user?.role !== 'admin' && estado === 'Pendiente de pago' && (
+                        <Tooltip title="Pagar">
                           <span>
                             <Button
                               size="small"
                               variant="contained"
-                              color="success"
-                              startIcon={<CheckCircle />}
-                              onClick={() => doConfirm(r._id)}
+                              color="primary"
+                              startIcon={<CreditCard />}
+                              onClick={() => {
+                                window.location.href = `/pay/${r._id}`
+                              }}
                             >
-                              Confirmar
+                              Pagar
                             </Button>
                           </span>
                         </Tooltip>
@@ -402,91 +377,32 @@ export default function Bookings() {
         </Table>
       </TableContainer>
 
-      {/* DIALOG REPROGRAMAR */}
-      <Dialog open={open} onClose={() => setOpen(false)}>
-        <DialogTitle>Reprogramar reserva</DialogTitle>
-        <Divider />
-        <DialogContent sx={{ pt: 2 }}>
-          <Stack spacing={2}>
-            <DatePicker
-              label="Inicio"
-              value={start}
-              onChange={setStart}
-              disablePast
-              format="DD/MM/YYYY"
-              shouldDisableDate={(date) => {
-                const d = date.day()
-                return d === 0 || d === 6
-              }}
-            />
-            <DatePicker
-              label="Fin"
-              value={end}
-              minDate={start || undefined}
-              onChange={setEnd}
-              format="DD/MM/YYYY"
-              shouldDisableDate={(date) => {
-                const d = date.day()
-                return d === 0 || d === 6
-              }}
-            />
-          </Stack>
-          <Box sx={{ mt: 1 }}>
-            <Typography variant="caption" color="text.secondary">
-              Debe ser una fecha futura y el fin posterior o igual al inicio.
-            </Typography>
-          </Box>
-        </DialogContent>
-        <DialogActions sx={{ p: 2 }}>
-          <Button onClick={() => setOpen(false)}>Cerrar</Button>
-          <Button
-            onClick={reschedule}
-            variant="contained"
-            disabled={!current || !start || !end || !canCancel || end.startOf('day').isBefore(start.startOf('day'))}
-          >
-            Guardar
-          </Button>
-        </DialogActions>
-      </Dialog>
-
       {/* DIALOG CANCELAR */}
-      <Dialog open={cancelOpen} onClose={() => !deleting && setCancelOpen(false)}>
-        <DialogTitle>Cancelar reserva</DialogTitle>
-        <Divider />
-        <DialogContent sx={{ pt: 2 }}>
-          <Stack spacing={1}>
-            <Typography variant="body2">
-              ¿Seguro que deseas cancelar la reserva
-              {toCancel && (
-                <>
-                  {' '}
-                  del espacio{' '}
-                  <strong>{typeof toCancel.space === 'string' ? toCancel.space : toCancel.space.name}</strong>?
-                </>
-              )}
-            </Typography>
-
-            {toCancel && (
+      <ConfirmDialog
+        open={cancelOpen}
+        title="Cancelar reserva"
+        confirmText={deleting ? 'Cancelando...' : 'Cancelar'}
+        loading={deleting}
+        onClose={() => !deleting && setCancelOpen(false)}
+        onConfirm={confirmCancel}
+        content={
+          toCancel ? (
+            <Stack spacing={1}>
+              <Typography variant="body2">
+                ¿Seguro que deseas cancelar la reserva del espacio{' '}
+                <strong>{typeof toCancel.space === 'string' ? toCancel.space : (toCancel.space as any).name}</strong>?
+              </Typography>
               <Typography variant="caption" color="text.secondary">
                 Inicio: {dayjs(toCancel.start).format('DD/MM/YYYY')} — Fin:{' '}
                 {dayjs(toCancel.end).subtract(1, 'day').format('DD/MM/YYYY')}
               </Typography>
-            )}
-
-            <Alert severity="warning" sx={{ mt: 1 }} variant="outlined">
-              Esta acción no se puede deshacer.
-            </Alert>
-          </Stack>
-        </DialogContent>
-        <DialogActions sx={{ p: 2 }}>
-          <Button onClick={() => setCancelOpen(false)} disabled={deleting}>
-            Cerrar
-          </Button>
-          <Button color="error" variant="contained" onClick={confirmCancel} disabled={deleting}>
-            {deleting ? 'Cancelando...' : 'Cancelar'}
-          </Button>
-        </DialogActions>
-      </Dialog>
+              <Alert severity="warning" sx={{ mt: 1 }} variant="outlined">
+                Esta acción no se puede deshacer.
+              </Alert>
+            </Stack>
+          ) : null
+        }
+      />
 
       {/* SNACKBAR */}
       <Snackbar

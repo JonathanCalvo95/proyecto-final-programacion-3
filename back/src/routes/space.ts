@@ -9,7 +9,6 @@ import Space from "../schemas/space";
 import Booking from "../schemas/booking";
 import authentication from "../middlewares/authentication";
 import { Types } from "mongoose";
-import { BOOKING_STATUS } from "../enums";
 import dayjs from "dayjs";
 
 type AuthedRequest = Request & { user?: { _id?: string; role?: UserRole } };
@@ -49,7 +48,7 @@ router.get(
 
       // 2) Buscar bookings NO canceladas que se solapen con el rango
       const bookings = await Booking.find({
-        status: { $ne: BOOKING_STATUS.CANCELED },
+        isCanceled: false,
         start: { $lte: endDate.toDate() },
         end: { $gte: startDate.toDate() },
       })

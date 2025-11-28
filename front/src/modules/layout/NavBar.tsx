@@ -136,7 +136,7 @@ export default function NavBar() {
             </>
           )}
 
-          {user && (
+          {user && user.role !== USER_ROLE.ADMIN && (
             <>
               <Button component={RouterLink} to="/ratings" sx={navButtonSx('/ratings')}>
                 Calificaciones
@@ -146,6 +146,13 @@ export default function NavBar() {
               </Button>
               <Button component={RouterLink} to="/bookings" sx={navButtonSx('/bookings')}>
                 Mis reservas
+              </Button>
+            </>
+          )}
+          {user && user.role === USER_ROLE.ADMIN && (
+            <>
+              <Button component={RouterLink} to="/ratings" sx={navButtonSx('/ratings')}>
+                Calificaciones
               </Button>
             </>
           )}

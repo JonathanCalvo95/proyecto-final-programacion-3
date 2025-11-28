@@ -2,7 +2,8 @@ import { Router, Request, Response, NextFunction } from "express";
 import authentication from "../middlewares/authentication";
 import Space from "../schemas/space";
 import Booking from "../schemas/booking";
-import { BOOKING_STATUS, USER_ROLE } from "../enums";
+import { USER_ROLE } from "../enums";
+import { BOOKING_STATUS } from "../enums/booking";
 
 const router = Router();
 
@@ -92,10 +93,13 @@ router.get(
       const until = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000); // próximos 30 días
 
       const totalSpaces = await Space.countDocuments({ active: true });
+
+      // Reservas "activas": cualquier reserva no cancelada
       const totalBookings = await Booking.countDocuments({
         status: { $ne: BOOKING_STATUS.CANCELED },
       });
 
+      // Para ocupación: solo no canceladas en la ventana futura
       const bookings = await Booking.find(
         {
           status: { $ne: BOOKING_STATUS.CANCELED },
@@ -136,7 +140,11 @@ router.get(
   async (_req, res, next) => {
     try {
       const top = await Booking.aggregate([
-        { $match: { status: { $ne: BOOKING_STATUS.CANCELED } } },
+        {
+          $match: {
+            status: { $ne: BOOKING_STATUS.CANCELED },
+          },
+        },
         { $group: { _id: "$space", count: { $sum: 1 } } },
         { $sort: { count: -1 } },
         { $limit: 5 },

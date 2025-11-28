@@ -2,7 +2,7 @@ import api from './api'
 import type { Booking } from '../types/booking.types'
 
 export async function getMyBookings(): Promise<Booking[]> {
-  return await api.get('/bookings/my')
+  return api.get('/bookings/my')
 }
 
 export async function getBookings(): Promise<Booking[]> {
@@ -16,11 +16,6 @@ export async function createBooking(spaceId: string, start: string, end: string)
 
 export async function cancelBooking(id: string): Promise<Booking> {
   const { data } = await api.patch(`/bookings/${id}/cancel`)
-  return data
-}
-
-export async function confirmBooking(id: string): Promise<Booking> {
-  const { data } = await api.patch(`/bookings/${id}/confirm`)
   return data
 }
 

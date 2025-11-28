@@ -22,6 +22,12 @@ export const SPACE_TYPE = {
 } as const satisfies Record<string, SpaceType>
 
 /* =============================
+   AMENITIES
+============================= */
+export const AMENITIES = ['WiFi', 'Proyector', 'Pizarrón', 'Café', 'Aire acondicionado', 'Calefacción'] as const
+export type Amenity = (typeof AMENITIES)[number]
+
+/* =============================
    BOOKING STATUS
 ============================= */
 export const BOOKING_STATUSES = ['pending', 'confirmed', 'canceled'] as const
@@ -31,4 +37,16 @@ export const BOOKING_STATUS = {
   PENDING: 'pending',
   CONFIRMED: 'confirmed',
   CANCELED: 'canceled',
-} as const satisfies Record<string, BookingStatus>
+} as const satisfies Record<'PENDING' | 'CONFIRMED' | 'CANCELED', BookingStatus>
+
+export const BOOKING_STATE_LABELS = ['Pendiente de pago', 'Pagada', 'Cancelada', 'Vencida'] as const
+
+export type BookingStateLabel = (typeof BOOKING_STATE_LABELS)[number]
+
+export const BOOKING_STATE_CHIP_COLOR: Record<BookingStateLabel, 'default' | 'success' | 'warning' | 'error' | 'info'> =
+  {
+    'Pendiente de pago': 'warning',
+    Pagada: 'success',
+    Cancelada: 'error',
+    Vencida: 'default',
+  }

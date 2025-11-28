@@ -25,6 +25,7 @@ import {
 } from '@mui/material'
 import { alpha, useTheme } from '@mui/material/styles'
 import { getUsers, createUser, updateUser } from '../../services/users'
+import ConfirmDialog from '../../components/ConfirmDialog'
 import type { User } from '../../types/user.types'
 import { USER_ROLE } from '../../types/enums'
 import type { UserRole } from '../../types/enums'
@@ -164,7 +165,6 @@ export default function AdminUsers() {
 
   const roleChipColor = (r: string) => (r === USER_ROLE.ADMIN ? 'primary' : ('default' as const))
 
-  // Misma UX que AdminBookings: loading y error a pantalla completa
   if (loading) {
     return (
       <Box display="flex" justifyContent="center" mt={8}>
@@ -183,7 +183,7 @@ export default function AdminUsers() {
 
   return (
     <>
-      {/* HEADER (similar a AdminBookings) */}
+      {/* HEADER */}
       <Box sx={{ mb: 3 }}>
         <Typography variant="h5" fontWeight={700}>
           Usuarios
@@ -193,7 +193,7 @@ export default function AdminUsers() {
         </Typography>
       </Box>
 
-      {/* FILTROS (Paper con borde como en AdminBookings) */}
+      {/* FILTROS */}
       <Paper
         sx={{
           p: 2,
@@ -235,7 +235,7 @@ export default function AdminUsers() {
         </Stack>
       </Paper>
 
-      {/* TABLA (alineada a AdminBookings) */}
+      {/* TABLA */}
       <TableContainer component={Paper} sx={{ borderRadius: 2 }}>
         <Table size="small" stickyHeader>
           <TableHead>
@@ -306,7 +306,7 @@ export default function AdminUsers() {
         </Table>
       </TableContainer>
 
-      {/* DIALOG crear/editar (con Divider como en AdminBookings) */}
+      {/* DIALOG crear/editar */}
       <Dialog open={openForm} onClose={handleCloseForm} fullWidth maxWidth="sm">
         <DialogTitle>{editing ? 'Editar usuario' : 'Nuevo usuario'}</DialogTitle>
         <Divider />
@@ -367,24 +367,22 @@ export default function AdminUsers() {
         </DialogActions>
       </Dialog>
 
-      {/* DIALOG eliminar (también con Divider) */}
-      <Dialog open={!!deleteTarget} onClose={() => (deleting ? null : setDeleteTarget(null))} maxWidth="xs" fullWidth>
-        <DialogTitle>Desactivar usuario</DialogTitle>
-        <Divider />
-        <DialogContent sx={{ pt: 2 }}>
-          <Typography>
-            ¿Seguro que querés desactivar al usuario <strong>{deleteTarget?.firstName || deleteTarget?.email}</strong>?
-          </Typography>
-        </DialogContent>
-        <DialogActions sx={{ p: 2 }}>
-          <Button onClick={() => setDeleteTarget(null)} disabled={deleting}>
-            Cancelar
-          </Button>
-          <Button color="error" variant="contained" onClick={handleDelete} disabled={deleting}>
-            {deleting ? 'Desactivando...' : 'Desactivar'}
-          </Button>
-        </DialogActions>
-      </Dialog>
+      <ConfirmDialog
+        open={!!deleteTarget}
+        title="Desactivar usuario"
+        confirmColor="error"
+        confirmText="Desactivar"
+        loading={deleting}
+        onClose={() => !deleting && setDeleteTarget(null)}
+        onConfirm={handleDelete}
+        content={
+          deleteTarget ? (
+            <Typography variant="body2">
+              ¿Seguro que querés desactivar al usuario <strong>{deleteTarget.firstName || deleteTarget.email}</strong>?
+            </Typography>
+          ) : null
+        }
+      />
     </>
   )
 }

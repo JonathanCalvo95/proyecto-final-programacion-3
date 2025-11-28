@@ -26,7 +26,12 @@ export async function seedRatingsIfEmpty() {
       if ((i + j) % 3 === 0) {
         const score = ((i + j) % 5) + 1;
         const comment = samples[(i + j) % samples.length];
-        payload.push({ user: u._id as Types.ObjectId, space: s._id as Types.ObjectId, score, comment });
+        payload.push({
+          user: u._id as Types.ObjectId,
+          space: s._id as Types.ObjectId,
+          score,
+          comment,
+        });
       }
     });
   });

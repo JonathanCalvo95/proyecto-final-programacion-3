@@ -19,6 +19,7 @@ import {
   Divider,
 } from '@mui/material'
 import { MeetingRoom, AccessTime, MonetizationOn, Star, FilterAlt, Today, Event } from '@mui/icons-material'
+import ConfirmDialog from '../../components/ConfirmDialog'
 import { alpha, useTheme } from '@mui/material/styles'
 import { DatePicker } from '@mui/x-date-pickers'
 import dayjs from 'dayjs'
@@ -28,7 +29,7 @@ import { getRatingsSummary } from '../../services/ratings'
 import { createBooking } from '../../services/bookings'
 import type { Space } from '../../types/space.types'
 import type { SpaceType } from '../../types/enums'
-import { SPACE_TYPES } from '../../types/enums'
+import { SPACE_TYPES, AMENITIES } from '../../types/enums'
 import { SPACE_TYPE_META } from '../../constants/spaceTypeMeta'
 
 dayjs.locale('es')
@@ -62,6 +63,7 @@ export default function Spaces() {
   const [minCap, setMinCap] = useState<number>(1)
   const [charFilters, setCharFilters] = useState<string[]>([])
   const [amenityFilters, setAmenityFilters] = useState<string[]>([])
+  const [sortBy, setSortBy] = useState<'relevant' | 'price_asc' | 'price_desc'>('relevant')
 
   // availability
   const [availableIds, setAvailableIds] = useState<Set<string>>(new Set())
@@ -73,10 +75,13 @@ export default function Spaces() {
     open: false,
     msg: '',
   })
+  const [reserveDialogOpen, setReserveDialogOpen] = useState(false)
+  const [reserveTarget, setReserveTarget] = useState<SpaceWithRate | null>(null)
+  const [bookingLoading, setBookingLoading] = useState(false)
 
   // carga inicial de espacios + ratings
   useEffect(() => {
-    ; (async () => {
+    ;(async () => {
       try {
         const [list, sums] = await Promise.all([getSpaces(), getRatingsSummary()])
         const merged = asArray(list).map((s: any) => {
@@ -116,15 +121,15 @@ export default function Spaces() {
   // características y amenities disponibles
   const { allCharacteristics, allAmenities } = useMemo(() => {
     const charSet = new Set<string>()
-    const amenSet = new Set<string>()
+    // amenities ahora fijos por enum
 
     asArray(orderedSpaces).forEach((s: any) => {
       asArray<string>(s.characteristics).forEach((c) => c && charSet.add(c))
-      asArray<string>(s.amenities).forEach((a) => a && amenSet.add(a))
     })
 
     const chars = Array.from(charSet).sort((a, b) => a.localeCompare(b, 'es'))
-    const amens = Array.from(amenSet).sort((a, b) => a.localeCompare(b, 'es'))
+    // amenities vienen del enum fijo manteniendo el orden definido
+    const amens = [...AMENITIES]
     return { allCharacteristics: chars, allAmenities: amens }
   }, [orderedSpaces])
 
@@ -144,6 +149,44 @@ export default function Spaces() {
       return true
     })
   }, [orderedSpaces, type, minCap, charFilters, amenityFilters])
+
+  // Sorting applying availability first, then selected criterion (relevance or price)
+  const sorted = useMemo(() => {
+    const arr = filtered.slice()
+    const hasRange = !!start && !!end && !disableReserve && availabilityFetched
+    arr.sort((a, b) => {
+      const aAvail = hasRange ? availableIds.has(String(a._id)) : true
+      const bAvail = hasRange ? availableIds.has(String(b._id)) : true
+      if (aAvail !== bAvail) return aAvail ? -1 : 1
+      // relevancia: mayor promedio primero, luego mayor cantidad, luego menor precio, luego nombre
+      if (sortBy === 'relevant') {
+        const aAvg = Number((a as any).__avg || 0)
+        const bAvg = Number((b as any).__avg || 0)
+        if (aAvg !== bAvg) return bAvg - aAvg
+        const aCount = Number((a as any).__count || 0)
+        const bCount = Number((b as any).__count || 0)
+        if (aCount !== bCount) return bCount - aCount
+        const aRate = (a as any).dailyRate ?? a.dailyRate ?? 0
+        const bRate = (b as any).dailyRate ?? b.dailyRate ?? 0
+        if (aRate !== bRate) return aRate - bRate
+        return (a.name || '').localeCompare(b.name || '', 'es')
+      }
+      const aRate = (a as any).dailyRate ?? a.dailyRate ?? 0
+      const bRate = (b as any).dailyRate ?? b.dailyRate ?? 0
+      if (sortBy === 'price_desc') {
+        if (aRate !== bRate) return bRate - aRate
+        return (a.name || '').localeCompare(b.name || '', 'es')
+      }
+      // price_asc
+      if (aRate !== bRate) return aRate - bRate
+      return (a.name || '').localeCompare(b.name || '', 'es')
+    })
+    return arr
+  }, [filtered, sortBy, start, end, disableReserve, availabilityFetched, availableIds])
+
+  function availabilityIdsHas(set: Set<string>, id: string) {
+    return set.has(id)
+  }
 
   // disponibilidad según rango de fechas
   useEffect(() => {
@@ -180,7 +223,6 @@ export default function Spaces() {
       })
   }, [start, end, disableReserve])
 
-  // cantidad “real” de espacios disponibles (para el chip de arriba)
   const availableCount = useMemo(() => {
     if (!start || !end || !availabilityFetched || disableReserve) return filtered.length
     if (availableIds.size === 0) return 0
@@ -247,11 +289,10 @@ export default function Spaces() {
       setSnack({ open: true, msg: 'Rango de fechas inválido', error: true })
       return
     }
-
+    setBookingLoading(true)
     try {
       await createBooking(spaceId, start.format('YYYY-MM-DD'), end.format('YYYY-MM-DD'))
       setSnack({ open: true, msg: 'Reserva creada' })
-      // Bloquear inmediatamente el espacio para el rango actual
       setAvailableIds((prev) => {
         const next = new Set<string>(prev)
         next.delete(String(spaceId))
@@ -261,6 +302,10 @@ export default function Spaces() {
     } catch (e: any) {
       const msg = e?.response?.data?.message || e?.response?.data || e?.message || 'Error al reservar'
       setSnack({ open: true, msg, error: true })
+    } finally {
+      setBookingLoading(false)
+      setReserveDialogOpen(false)
+      setReserveTarget(null)
     }
   }
 
@@ -464,6 +509,24 @@ export default function Spaces() {
                     sx={{ mt: 1 }}
                   />
                 </Box>
+
+                <TextField
+                  label="Ordenar"
+                  helperText={
+                    availabilityFetched && !disableReserve
+                      ? 'Disponibles siempre arriba'
+                      : 'Seleccioná rango para priorizar disponibilidad'
+                  }
+                  select
+                  size="small"
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value as any)}
+                  fullWidth
+                >
+                  <MenuItem value="relevant">Más relevantes</MenuItem>
+                  <MenuItem value="price_asc">Menor precio</MenuItem>
+                  <MenuItem value="price_desc">Mayor precio</MenuItem>
+                </TextField>
               </Stack>
             </Paper>
 
@@ -539,7 +602,7 @@ export default function Spaces() {
         {/* PANEL DERECHO: LISTADO */}
         <Grid size={{ xs: 12, md: 8 }}>
           <Stack spacing={2.5}>
-            {filtered.length === 0 && (
+            {sorted.length === 0 && (
               <Paper
                 variant="outlined"
                 sx={{
@@ -557,8 +620,7 @@ export default function Spaces() {
                 </Typography>
               </Paper>
             )}
-
-            {filtered.map((s) => {
+            {sorted.map((s) => {
               const meta = TYPE_META[s.type as SpaceType]
               const Icon = meta.Icon
               const dailyRate = s.dailyRate ?? (s as any).dailyRate ?? 0
@@ -746,7 +808,10 @@ export default function Spaces() {
 
                       <Button
                         variant="contained"
-                        onClick={() => book(s._id)}
+                        onClick={() => {
+                          setReserveTarget(s)
+                          setReserveDialogOpen(true)
+                        }}
                         disabled={buttonDisabled}
                         sx={{
                           mt: 0.5,
@@ -797,6 +862,36 @@ export default function Spaces() {
           {snack.msg}
         </Alert>
       </Snackbar>
+
+      <ConfirmDialog
+        open={reserveDialogOpen}
+        title="Confirmar reserva"
+        onClose={() => !bookingLoading && setReserveDialogOpen(false)}
+        onConfirm={() => reserveTarget && book(String(reserveTarget._id))}
+        confirmText="Reservar"
+        loading={bookingLoading}
+        content={
+          reserveTarget && start && end ? (
+            <Stack spacing={1.5}>
+              <Typography variant="body2">
+                Vas a reservar el espacio <strong>{reserveTarget.name}</strong> del{' '}
+                <strong>{start.format('DD/MM/YYYY')}</strong> al <strong>{end.format('DD/MM/YYYY')}</strong>.
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Días: {days} • Tarifa diaria: {money(reserveTarget.dailyRate || 0)} • Estimado total:{' '}
+                <Box component="span" fontWeight={600} color="primary.main">
+                  {money((reserveTarget.dailyRate || 0) * days)}
+                </Box>
+              </Typography>
+              <Alert severity="info" variant="outlined">
+                El espacio quedará bloqueado inmediatamente para este rango.
+              </Alert>
+            </Stack>
+          ) : (
+            <Typography variant="body2">Seleccioná fechas válidas antes de reservar.</Typography>
+          )
+        }
+      />
     </>
   )
 }

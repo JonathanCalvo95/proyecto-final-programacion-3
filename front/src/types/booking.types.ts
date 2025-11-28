@@ -1,6 +1,6 @@
-import type { BookingStatus } from './enums'
 import type { Space } from './space.types'
 import type { User } from './user.types'
+import type { BookingStatus } from './enums'
 
 export interface Booking {
   _id: string

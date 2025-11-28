@@ -26,7 +26,7 @@ import { getRatings, saveRating } from '../../services/ratings'
 import type { Space } from '../../types/space.types'
 import type { Rating } from '../../types/rating.types'
 import { useAuth } from '../../context/AuthContext'
-import type { SpaceType } from '../../types/enums'
+import { USER_ROLE, type SpaceType } from '../../types/enums'
 import { SPACE_TYPE_META } from '../../constants/spaceTypeMeta'
 
 export default function Ratings() {
@@ -96,7 +96,6 @@ export default function Ratings() {
     return m
   }, [myRatings])
 
-  // Prefill score/comment when selecting a space already rated by me
   useEffect(() => {
     if (!spaceId) {
       setScore(3)
@@ -123,8 +122,6 @@ export default function Ratings() {
       .size
     return { total, avg: Number(avg.toFixed(2)), uniqueSpaces, uniqueUsers }
   }, [ratings])
-
-  // (gráfico removido)
 
   const filteredAll = useMemo(() => {
     const s = q.trim().toLowerCase()
@@ -207,7 +204,6 @@ export default function Ratings() {
 
       setRatings([r, ...next])
       setSnack({ open: true, msg: 'Calificación guardada' })
-      // Reset fields to allow selecting another space
       setSpaceId('')
       setComment('')
       setScore(3)
@@ -240,146 +236,148 @@ export default function Ratings() {
       </Box>
 
       {/* KPIs */}
-      <Grid container spacing={2} sx={{ mb: 3 }}>
-        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-          <Card
-            sx={{
-              borderRadius: 3,
-              boxShadow: '0 18px 40px rgba(15,23,42,0.06)',
-              background: (t) =>
-                `linear-gradient(135deg, ${alpha(t.palette.primary.main, 0.12)}, ${t.palette.background.paper})`,
-            }}
-          >
-            <CardContent>
-              <Stack direction="row" alignItems="center" spacing={1.5}>
-                <Avatar
-                  sx={(t) => ({
-                    bgcolor: alpha(t.palette.primary.main, 0.16),
-                    color: t.palette.primary.main,
-                    width: 32,
-                    height: 32,
-                  })}
-                >
-                  <Star />
-                </Avatar>
-                <Box>
-                  <Typography variant="body2" color="text.secondary">
-                    Total calificaciones
-                  </Typography>
-                  <Typography variant="h5" fontWeight={700}>
-                    {kpis.total}
-                  </Typography>
-                </Box>
-              </Stack>
-            </CardContent>
-          </Card>
-        </Grid>
-
-        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-          <Card
-            sx={{
-              borderRadius: 3,
-              boxShadow: '0 18px 40px rgba(15,23,42,0.06)',
-              background: (t) =>
-                `linear-gradient(135deg, ${alpha(t.palette.warning.main, 0.16)}, ${t.palette.background.paper})`,
-            }}
-          >
-            <CardContent>
-              <Stack direction="row" alignItems="center" spacing={1.5}>
-                <Avatar
-                  sx={(t) => ({
-                    bgcolor: alpha(t.palette.warning.main, 0.18),
-                    color: t.palette.warning.main,
-                    width: 32,
-                    height: 32,
-                  })}
-                >
-                  <StarHalf />
-                </Avatar>
-                <Box>
-                  <Typography variant="body2" color="text.secondary">
-                    Promedio global
-                  </Typography>
-                  <Stack direction="row" spacing={1} alignItems="center">
-                    <MuiRating value={kpis.avg} precision={0.1} readOnly max={5} size="small" />
-                    <Typography variant="h6" fontWeight={700}>
-                      {kpis.avg}
+      {user?.role !== USER_ROLE.CLIENT && (
+        <Grid container spacing={2} sx={{ mb: 3 }}>
+          <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+            <Card
+              sx={{
+                borderRadius: 3,
+                boxShadow: '0 18px 40px rgba(15,23,42,0.06)',
+                background: (t) =>
+                  `linear-gradient(135deg, ${alpha(t.palette.primary.main, 0.12)}, ${t.palette.background.paper})`,
+              }}
+            >
+              <CardContent>
+                <Stack direction="row" alignItems="center" spacing={1.5}>
+                  <Avatar
+                    sx={(t) => ({
+                      bgcolor: alpha(t.palette.primary.main, 0.16),
+                      color: t.palette.primary.main,
+                      width: 32,
+                      height: 32,
+                    })}
+                  >
+                    <Star />
+                  </Avatar>
+                  <Box>
+                    <Typography variant="body2" color="text.secondary">
+                      Total calificaciones
                     </Typography>
-                  </Stack>
-                </Box>
-              </Stack>
-            </CardContent>
-          </Card>
-        </Grid>
+                    <Typography variant="h5" fontWeight={700}>
+                      {kpis.total}
+                    </Typography>
+                  </Box>
+                </Stack>
+              </CardContent>
+            </Card>
+          </Grid>
 
-        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-          <Card
-            sx={{
-              borderRadius: 3,
-              boxShadow: '0 18px 40px rgba(15,23,42,0.06)',
-              background: (t) =>
-                `linear-gradient(135deg, ${alpha(t.palette.success.main, 0.12)}, ${t.palette.background.paper})`,
-            }}
-          >
-            <CardContent>
-              <Stack direction="row" alignItems="center" spacing={1.5}>
-                <Avatar
-                  sx={(t) => ({
-                    bgcolor: alpha(t.palette.success.main, 0.18),
-                    color: t.palette.success.main,
-                    width: 32,
-                    height: 32,
-                  })}
-                >
-                  <MeetingRoom />
-                </Avatar>
-                <Box>
-                  <Typography variant="body2" color="text.secondary">
-                    Espacios calificados
-                  </Typography>
-                  <Typography variant="h5" fontWeight={700}>
-                    {kpis.uniqueSpaces}
-                  </Typography>
-                </Box>
-              </Stack>
-            </CardContent>
-          </Card>
-        </Grid>
+          <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+            <Card
+              sx={{
+                borderRadius: 3,
+                boxShadow: '0 18px 40px rgba(15,23,42,0.06)',
+                background: (t) =>
+                  `linear-gradient(135deg, ${alpha(t.palette.warning.main, 0.16)}, ${t.palette.background.paper})`,
+              }}
+            >
+              <CardContent>
+                <Stack direction="row" alignItems="center" spacing={1.5}>
+                  <Avatar
+                    sx={(t) => ({
+                      bgcolor: alpha(t.palette.warning.main, 0.18),
+                      color: t.palette.warning.main,
+                      width: 32,
+                      height: 32,
+                    })}
+                  >
+                    <StarHalf />
+                  </Avatar>
+                  <Box>
+                    <Typography variant="body2" color="text.secondary">
+                      Promedio global
+                    </Typography>
+                    <Stack direction="row" spacing={1} alignItems="center">
+                      <MuiRating value={kpis.avg} precision={0.1} readOnly max={5} size="small" />
+                      <Typography variant="h6" fontWeight={700}>
+                        {kpis.avg}
+                      </Typography>
+                    </Stack>
+                  </Box>
+                </Stack>
+              </CardContent>
+            </Card>
+          </Grid>
 
-        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-          <Card
-            sx={{
-              borderRadius: 3,
-              boxShadow: '0 18px 40px rgba(15,23,42,0.06)',
-              background: (t) =>
-                `linear-gradient(135deg, ${alpha(t.palette.info.main, 0.15)}, ${t.palette.background.paper})`,
-            }}
-          >
-            <CardContent>
-              <Stack direction="row" alignItems="center" spacing={1.5}>
-                <Avatar
-                  sx={(t) => ({
-                    bgcolor: alpha(t.palette.info.main, 0.18),
-                    color: t.palette.info.main,
-                    width: 32,
-                    height: 32,
-                  })}
-                >
-                  <Groups />
-                </Avatar>
-                <Box>
-                  <Typography variant="body2" color="text.secondary">
-                    Usuarios que opinan
-                  </Typography>
-                  <Typography variant="h5" fontWeight={700}>
-                    {kpis.uniqueUsers}
-                  </Typography>
-                </Box>
-              </Stack>
-            </CardContent>
-          </Card>
+          <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+            <Card
+              sx={{
+                borderRadius: 3,
+                boxShadow: '0 18px 40px rgba(15,23,42,0.06)',
+                background: (t) =>
+                  `linear-gradient(135deg, ${alpha(t.palette.success.main, 0.12)}, ${t.palette.background.paper})`,
+              }}
+            >
+              <CardContent>
+                <Stack direction="row" alignItems="center" spacing={1.5}>
+                  <Avatar
+                    sx={(t) => ({
+                      bgcolor: alpha(t.palette.success.main, 0.18),
+                      color: t.palette.success.main,
+                      width: 32,
+                      height: 32,
+                    })}
+                  >
+                    <MeetingRoom />
+                  </Avatar>
+                  <Box>
+                    <Typography variant="body2" color="text.secondary">
+                      Espacios calificados
+                    </Typography>
+                    <Typography variant="h5" fontWeight={700}>
+                      {kpis.uniqueSpaces}
+                    </Typography>
+                  </Box>
+                </Stack>
+              </CardContent>
+            </Card>
+          </Grid>
+
+          <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+            <Card
+              sx={{
+                borderRadius: 3,
+                boxShadow: '0 18px 40px rgba(15,23,42,0.06)',
+                background: (t) =>
+                  `linear-gradient(135deg, ${alpha(t.palette.info.main, 0.15)}, ${t.palette.background.paper})`,
+              }}
+            >
+              <CardContent>
+                <Stack direction="row" alignItems="center" spacing={1.5}>
+                  <Avatar
+                    sx={(t) => ({
+                      bgcolor: alpha(t.palette.info.main, 0.18),
+                      color: t.palette.info.main,
+                      width: 32,
+                      height: 32,
+                    })}
+                  >
+                    <Groups />
+                  </Avatar>
+                  <Box>
+                    <Typography variant="body2" color="text.secondary">
+                      Usuarios que opinan
+                    </Typography>
+                    <Typography variant="h5" fontWeight={700}>
+                      {kpis.uniqueUsers}
+                    </Typography>
+                  </Box>
+                </Stack>
+              </CardContent>
+            </Card>
+          </Grid>
         </Grid>
-      </Grid>
+      )}
 
       {error && (
         <Alert severity="error" sx={{ mb: 2 }}>
@@ -387,58 +385,60 @@ export default function Ratings() {
         </Alert>
       )}
 
-      {/* Form de calificación */}
-      <Paper
-        variant="outlined"
-        sx={{
-          p: 2.5,
-          mb: 2.5,
-          borderRadius: 3,
-        }}
-      >
-        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems={{ xs: 'stretch', sm: 'center' }}>
-          <TextField
-            label="Espacio"
-            select
-            value={spaceId}
-            onChange={(e) => setSpaceId(e.target.value)}
-            sx={{ minWidth: 300 }}
-            size="small"
-            helperText="Solo se muestran espacios previamente reservados"
-          >
-            <MenuItem value="">Seleccionar</MenuItem>
-            {spaces
-              .filter((s) => bookedSpaceIds.has(String(s._id)))
-              .map((s) => (
-                <MenuItem key={s._id} value={s._id}>
-                  {s.name}
-                  {ratedMap.has(String(s._id)) && (
-                    <Chip size="small" label="Ya calificado" color="primary" variant="outlined" sx={{ ml: 1 }} />
-                  )}
-                </MenuItem>
-              ))}
-          </TextField>
+      {/* Form de calificación solo para clientes */}
+      {user?.role === USER_ROLE.CLIENT && (
+        <Paper
+          variant="outlined"
+          sx={{
+            p: 2.5,
+            mb: 2.5,
+            borderRadius: 3,
+          }}
+        >
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems={{ xs: 'stretch', sm: 'center' }}>
+            <TextField
+              label="Espacio"
+              select
+              value={spaceId}
+              onChange={(e) => setSpaceId(e.target.value)}
+              sx={{ minWidth: 300 }}
+              size="small"
+              helperText="Solo se muestran espacios previamente reservados"
+            >
+              <MenuItem value="">Seleccionar</MenuItem>
+              {spaces
+                .filter((s) => bookedSpaceIds.has(String(s._id)))
+                .map((s) => (
+                  <MenuItem key={s._id} value={s._id}>
+                    {s.name}
+                    {ratedMap.has(String(s._id)) && (
+                      <Chip size="small" label="Ya calificado" color="primary" variant="outlined" sx={{ ml: 1 }} />
+                    )}
+                  </MenuItem>
+                ))}
+            </TextField>
 
-          <Stack direction="row" spacing={1} alignItems="center">
-            <Typography variant="body2" color="text.secondary">
-              Puntaje:
-            </Typography>
-            <MuiRating value={score} onChange={(_, v) => setScore(v)} precision={1} max={5} />
+            <Stack direction="row" spacing={1} alignItems="center">
+              <Typography variant="body2" color="text.secondary">
+                Puntaje:
+              </Typography>
+              <MuiRating value={score} onChange={(_, v) => setScore(v)} precision={1} max={5} />
+            </Stack>
+
+            <TextField
+              fullWidth
+              label="Comentario (opcional)"
+              value={comment}
+              onChange={(e) => setComment(e.target.value)}
+              size="small"
+            />
+
+            <Button variant="contained" onClick={submit} disabled={saving} sx={{ whiteSpace: 'nowrap' }}>
+              {saving ? 'Guardando...' : 'Calificar'}
+            </Button>
           </Stack>
-
-          <TextField
-            fullWidth
-            label="Comentario (opcional)"
-            value={comment}
-            onChange={(e) => setComment(e.target.value)}
-            size="small"
-          />
-
-          <Button variant="contained" onClick={submit} disabled={saving} sx={{ whiteSpace: 'nowrap' }}>
-            {saving ? 'Guardando...' : 'Calificar'}
-          </Button>
-        </Stack>
-      </Paper>
+        </Paper>
+      )}
 
       {/* Filtros de listado */}
       <Paper
@@ -511,12 +511,16 @@ export default function Ratings() {
                 <Grid key={r._id} size={{ xs: 12, sm: 6, md: 4, lg: 3 }}>
                   <Card
                     sx={{
-                      borderRadius: 2,
-                      outline: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
-                      boxShadow: '0 8px 20px rgba(15,23,42,0.06)',
-                      background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.04)}, ${
-                        theme.palette.background.paper
-                      })`,
+                      borderRadius: 3,
+                      border: `1.5px solid ${alpha(theme.palette.primary.main, 0.35)}`,
+                      boxShadow: '0 18px 40px rgba(15,23,42,0.10)',
+                      background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.10)}, ${theme.palette.background.paper})`,
+                      transition: '150ms',
+                      '&:hover': {
+                        borderColor: alpha(theme.palette.primary.main, 0.75),
+                        boxShadow: '0 22px 55px rgba(15,23,42,0.18)',
+                        transform: 'translateY(-2px)',
+                      },
                     }}
                   >
                     <CardHeader
@@ -600,11 +604,16 @@ export default function Ratings() {
               <Grid key={r._id} size={{ xs: 12, sm: 6, md: 4, lg: 3 }}>
                 <Card
                   sx={{
-                    borderRadius: 2,
-                    outline: '1px solid',
-                    outlineColor: alpha(theme.palette.divider, 0.7),
-                    boxShadow: '0 8px 20px rgba(15,23,42,0.06)',
-                    background: `linear-gradient(135deg, ${alpha(color, 0.04)}, ${theme.palette.background.paper})`,
+                    borderRadius: 3,
+                    border: `1.5px solid ${alpha(color, 0.35)}`,
+                    boxShadow: '0 18px 40px rgba(15,23,42,0.10)',
+                    background: `linear-gradient(135deg, ${alpha(color, 0.10)}, ${theme.palette.background.paper})`,
+                    transition: '150ms',
+                    '&:hover': {
+                      borderColor: alpha(color, 0.75),
+                      boxShadow: '0 22px 55px rgba(15,23,42,0.18)',
+                      transform: 'translateY(-2px)',
+                    },
                   }}
                 >
                   <CardHeader

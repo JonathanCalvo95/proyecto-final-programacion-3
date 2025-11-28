@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import { LocalizationProvider } from '@mui/x-date-pickers'
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs'
+import 'dayjs/locale/es'
 import { AppThemeProvider } from './theme/ThemeProvider'
 import { AuthProvider } from './context/AuthContext'
 import { ErrorBoundary } from 'react-error-boundary'
@@ -24,7 +25,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
       <AppThemeProvider>
         <BrowserRouter>
           <AuthProvider>
-            <LocalizationProvider dateAdapter={AdapterDayjs}>
+            <LocalizationProvider dateAdapter={AdapterDayjs} adapterLocale="es">
               <App />
             </LocalizationProvider>
           </AuthProvider>

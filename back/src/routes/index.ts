@@ -6,6 +6,7 @@ import bookingRouter from "./booking";
 import userRouter from "./user";
 import ratingRouter from "./rating";
 import authentication from "../middlewares/authentication";
+import paymentRouter from "./payment";
 
 const router = Router();
 
@@ -19,5 +20,6 @@ router.use("/admin", adminRouter);
 router.use("/bookings", bookingRouter);
 router.use("/user", userRouter);
 router.use("/ratings", ratingRouter);
+router.use("/payments", paymentRouter);
 
 export default router;

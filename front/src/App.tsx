@@ -8,6 +8,8 @@ import AdminSpaces from './modules/admin/AdminSpaces'
 import AdminBookings from './modules/admin/AdminBookings'
 import AdminUsers from './modules/admin/AdminUsers'
 import Ratings from './modules/ratings/Ratings'
+import PayBooking from './modules/pay/PayBooking'
+import BookingDetail from './modules/bookings/BookingDetail'
 import { useAuth } from './context/AuthContext'
 import { USER_ROLE } from './types/enums'
 import { Layout } from './modules/layout'
@@ -65,9 +67,16 @@ export default function App() {
             <Route path="/admin/users" element={<AdminUsers />} />
           </Route>
 
-          {/* Rutas de usuario normal */}
-          <Route path="/spaces" element={<Spaces />} />
-          <Route path="/bookings" element={<Bookings />} />
+          {/* Rutas de usuario cliente */}
+          <Route element={<Guard role={USER_ROLE.CLIENT} />}>
+            <Route path="/spaces" element={<Spaces />} />
+            <Route path="/bookings" element={<Bookings />} />
+            <Route path="/pay/:bookingId" element={<PayBooking />} />
+          </Route>
+
+          {/* Detalle de reserva accesible para admin y cliente */}
+          <Route path="/bookings/:id" element={<BookingDetail />} />
+
           <Route path="/ratings" element={<Ratings />} />
         </Route>
       </Route>

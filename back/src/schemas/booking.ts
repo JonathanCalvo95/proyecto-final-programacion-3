@@ -1,8 +1,8 @@
 import { Schema, model, Types } from "mongoose";
-import { BOOKING_STATUSES, BookingStatus } from "../enums/booking";
+import { BOOKING_STATUS, BookingStatus } from "../enums/booking";
 
 export interface IBooking {
-  _id?: string;
+  _id?: Types.ObjectId;
   user: Types.ObjectId;
   space: Types.ObjectId;
   start: Date;
@@ -22,15 +22,15 @@ const schema = new Schema<IBooking>(
     amount: { type: Number, required: true },
     status: {
       type: String,
-      enum: BOOKING_STATUSES,
-      default: BOOKING_STATUSES[0],
+      enum: Object.values(BOOKING_STATUS),
+      default: BOOKING_STATUS.PENDING_PAYMENT,
     },
   },
   { timestamps: true, versionKey: false }
 );
 
+schema.index({ status: 1 });
 schema.index({ space: 1, start: 1, end: 1 });
 schema.index({ user: 1, start: 1 });
-schema.index({ status: 1 });
 
 export default model<IBooking>("Booking", schema);

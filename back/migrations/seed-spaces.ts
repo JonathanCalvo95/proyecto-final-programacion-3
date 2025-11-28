@@ -15,8 +15,9 @@ export async function seedSpacesIfEmpty() {
       type: SPACE_TYPE.MEETING_ROOM,
       capacity: 8,
       dailyRate: 480,
-      content: "Sala luminosa con mesa grande, ideal para presentaciones y workshops.",
-      characteristics: ["Luminosa", "Aislación acústica", "TV 55\""],
+      content:
+        "Sala luminosa con mesa grande, ideal para presentaciones y workshops.",
+      characteristics: ["Luminosa", "Aislación acústica", 'TV 55"'],
       amenities: ["WiFi", "Proyector", "Pizarrón", "Café"],
       createdBy: adminId,
     },

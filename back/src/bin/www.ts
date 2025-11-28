@@ -25,7 +25,8 @@ const port = env.port;
 
     try {
       const created = await seedRatingsIfEmpty();
-      if (created > 0) console.log(`Calificaciones iniciales creadas: ${created}`);
+      if (created > 0)
+        console.log(`Calificaciones iniciales creadas: ${created}`);
     } catch (e: any) {
       console.warn("Seed de calificaciones omitido:", e?.message || e);
     }

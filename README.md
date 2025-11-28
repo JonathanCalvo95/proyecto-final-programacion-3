@@ -77,41 +77,41 @@ npm run dev
 
 ## 🔌 Endpoints principales (BACK)
 
-| Método | Ruta                             | Descripción                   |
-| ------ | -------------------------------- | -------------------------     |
-| POST   | `/api/auth/login`                | Login y JWT                   |
-| GET    | `/api/auth/me`                   | Perfil del usuario            |
-| POST   | `/api/auth/logout`               | Cerrar sesion                 |
-| GET    | `/api/spaces`                    | Listar espacios activos       |
-| GET    | `/api/spaces/availability`       | IDs disponibles               |
-| POST   | `/api/spaces`                    | Crear espacio (admin)         |
-| PUT    | `/api/spaces`                    | Modifica espacio (admin)      |
-| DELETE | `/api/spaces`                    | Eliminar espacio (admin)      |
-| GET    | `/api/bookings`                  | Listar reservas (admin)       |
-| GET    | `/api/bookings/my`               | Listar mis reservas           |
-| POST   | `/api/bookings`                  | Reservar un espacio           |
-| PATCH  | `/api/bookings/:id/confirm`      | Confirmar reserva             |
-| PATCH  | `/api/bookings/:id/reschedule`   | Reprogramar reserva           |
-| PATCH  | `/api/bookings/:id/cancel`       | Cancelar reserva              |
-| GET    | `/api/admin/metrics`             | Métricas (admin)              |
-| GET    | `/api/admin/top-spaces`          | Top reservas (admin)          |
-| GET    | `/api/ratings`                   | Listar calificaciones         |
-| POST   | `/api/ratings`                   | Crear/actualizar calificación |
+| Método | Ruta                           | Descripción                   |
+| ------ | ------------------------------ | ----------------------------- |
+| POST   | `/api/auth/login`              | Login y JWT                   |
+| GET    | `/api/auth/me`                 | Perfil del usuario            |
+| POST   | `/api/auth/logout`             | Cerrar sesion                 |
+| GET    | `/api/spaces`                  | Listar espacios activos       |
+| GET    | `/api/spaces/availability`     | IDs disponibles               |
+| POST   | `/api/spaces`                  | Crear espacio (admin)         |
+| PUT    | `/api/spaces`                  | Modifica espacio (admin)      |
+| DELETE | `/api/spaces`                  | Eliminar espacio (admin)      |
+| GET    | `/api/bookings`                | Listar reservas (admin)       |
+| GET    | `/api/bookings/my`             | Listar mis reservas           |
+| POST   | `/api/bookings`                | Reservar un espacio           |
+| PATCH  | `/api/bookings/:id/confirm`    | Confirmar reserva             |
+| PATCH  | `/api/bookings/:id/reschedule` | Reprogramar reserva           |
+| PATCH  | `/api/bookings/:id/cancel`     | Cancelar reserva              |
+| GET    | `/api/admin/metrics`           | Métricas (admin)              |
+| GET    | `/api/admin/top-spaces`        | Top reservas (admin)          |
+| GET    | `/api/ratings`                 | Listar calificaciones         |
+| POST   | `/api/ratings`                 | Crear/actualizar calificación |
 
 ---
 
 ## 🧭 Rutas principales (FRONT)
 
-| Ruta              | Descripción                   |
-| ----------------- | ----------------------------- |
-| `/login`          | Inicio de sesión              |
-| `/`               | Métricas (admin)              |
-| `/admin`          | Métricas (admin)              |
-| `/admin/spaces`   | Géstion de espacios (admin)   |
-| `/admin/bookings` | Géstion de reservas (admin)   |
-| `/spaces`         | Listar espacios               |
-| `/bookings`       | Listar mis reservas           |
-| `/ratings`        | Calificaciones                |
+| Ruta              | Descripción                 |
+| ----------------- | --------------------------- |
+| `/login`          | Inicio de sesión            |
+| `/`               | Métricas (admin)            |
+| `/admin`          | Métricas (admin)            |
+| `/admin/spaces`   | Géstion de espacios (admin) |
+| `/admin/bookings` | Géstion de reservas (admin) |
+| `/spaces`         | Listar espacios             |
+| `/bookings`       | Listar mis reservas         |
+| `/ratings`        | Calificaciones              |
 
 ---
 
@@ -121,6 +121,7 @@ npm run dev
 - Roles: administrador / cliente
 - CRUD de espacios (admin)
 - Reservas por día con validación de disponibilidad y bloqueo inmediato del espacio
+- Pago de reservas (módulo de tarjeta con validaciones básicas y confirmación automática)
 - Cancelación antes de la fecha
 - Métricas y top espacios más reservados
 - Calificaciones con promedio por espacio
@@ -138,13 +139,3 @@ Se ejecuta al correr la aplicacion si no existen datos en las colecciones.
 ## 👤 Autor
 
 **Jonathan Calvo**
-
-proximas tareas
-
-agregar modulo de pagos con card para cargar datos de tarjeta
-en reservar espacio ordenar por los disponibles y mostrar los precios mas grandes y poder ordenarlos
-agregar modales de confirmacion para acciones principales como reservar y otras pantallas
-revisar tema de estados en reservas
-hacer amenities como enum fijo  
-remover pantallas de reservar espacio y mis reservas para admin
-en calificaciones remover cards de informacion para los clientes

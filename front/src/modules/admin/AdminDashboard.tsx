@@ -12,13 +12,19 @@ import {
   ListItem,
   ListItemText,
   ListItemIcon,
+  Alert,
 } from '@mui/material'
 import { alpha, useTheme } from '@mui/material/styles'
 import { MeetingRoom, EventAvailable, QueryStats, CalendarMonth, TrendingUp } from '@mui/icons-material'
 import { BarChart, PieChart } from '@mui/x-charts'
+import dayjs from 'dayjs'
+
 import { getMetrics, getTopSpaces } from '../../services/admin'
 import { getBookings } from '../../services/bookings'
-import dayjs from 'dayjs'
+import { getAllPayments } from '../../services/payments'
+
+import type { Booking } from '../../types/booking.types'
+import type { Payment } from '../../types/payment.types'
 
 type Metrics = {
   totalSpaces?: number
@@ -26,27 +32,50 @@ type Metrics = {
   occupancyRate?: number
 }
 
+type ChartBucketKey = 'pending' | 'confirmed' | 'canceled'
+
 export default function AdminDashboard() {
   const theme = useTheme()
   const [metrics, setMetrics] = useState<Metrics>({})
   const [top, setTop] = useState<any[]>([])
-  const [bookings, setBookings] = useState<any[]>([])
+  const [bookings, setBookings] = useState<Booking[]>([])
+  const [payments, setPayments] = useState<Payment[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     ;(async () => {
       try {
         setLoading(true)
-        const [m, t, b] = await Promise.all([getMetrics(), getTopSpaces(), getBookings()])
+        setError(null)
+
+        const [m, t, b, p] = await Promise.all([getMetrics(), getTopSpaces(), getBookings(), getAllPayments()])
 
         setMetrics(m || {})
         setTop(Array.isArray(t) ? t : [])
         setBookings(Array.isArray(b) ? b : [])
+        setPayments(Array.isArray(p) ? p : [])
+      } catch (e: any) {
+        setError(e?.response?.data?.message || e?.message || 'Error cargando métricas')
+        setMetrics({})
+        setTop([])
+        setBookings([])
+        setPayments([])
       } finally {
         setLoading(false)
       }
     })()
   }, [])
+
+  /* ------------------------ MAPA DE PAGOS ------------------------ */
+
+  const paymentMap = useMemo(() => {
+    const m: Record<string, Payment> = {}
+    payments.forEach((p) => {
+      if (p.booking) m[String(p.booking)] = p
+    })
+    return m
+  }, [payments])
 
   /* ------------------------ INSIGHTS ------------------------ */
 
@@ -55,7 +84,7 @@ export default function AdminDashboard() {
     const map: Record<string, number> = {}
 
     for (const b of bookings) {
-      const name = typeof b.space === 'string' ? b.space : b.space.name
+      const name = typeof b.space === 'string' ? b.space : (b.space as any).name
       map[name] = (map[name] || 0) + 1
     }
 
@@ -79,30 +108,50 @@ export default function AdminDashboard() {
   /* ------------------------ STATUS CHART ------------------------ */
 
   const statusDist = useMemo(() => {
-    const map: Record<'pending' | 'confirmed' | 'canceled', number> = {
+    const buckets: Record<ChartBucketKey, number> = {
       pending: 0,
       confirmed: 0,
       canceled: 0,
     }
 
     for (const b of bookings) {
-      const status = b.status as 'pending' | 'confirmed' | 'canceled'
-      if (status in map) map[status]++
+      const payment = paymentMap[b._id]
+      const isCanceled = b.status === 'canceled'
+      const isConfirmed = b.status === 'confirmed' || !!payment
+
+      if (isCanceled) buckets.canceled++
+      else if (isConfirmed) buckets.confirmed++
+      else buckets.pending++
     }
 
     return [
-      { id: 'pending', label: 'Pendiente', value: map.pending, color: theme.palette.warning.main },
-      { id: 'confirmed', label: 'Confirmada', value: map.confirmed, color: theme.palette.success.main },
-      { id: 'canceled', label: 'Cancelada', value: map.canceled, color: theme.palette.error.main },
+      {
+        id: 'pending',
+        label: 'Pendiente',
+        value: buckets.pending,
+        color: theme.palette.warning.main,
+      },
+      {
+        id: 'confirmed',
+        label: 'Confirmada',
+        value: buckets.confirmed,
+        color: theme.palette.success.main,
+      },
+      {
+        id: 'canceled',
+        label: 'Cancelada',
+        value: buckets.canceled,
+        color: theme.palette.error.main,
+      },
     ]
-  }, [bookings, theme])
+  }, [bookings, paymentMap, theme])
 
-  /* ------------------------ NEXT BOOKINGS (timeline) ------------------------ */
+  /* ------------------------ Próximas reservas ------------------------ */
 
   const upcoming = useMemo(() => {
     const today = dayjs().startOf('day')
     return bookings
-      .filter((b) => dayjs(b.start).startOf('day').isAfter(today))
+      .filter((b) => b.status !== 'canceled' && dayjs(b.start).startOf('day').isAfter(today))
       .sort((a, b) => dayjs(a.start).diff(dayjs(b.start)))
       .slice(0, 6)
   }, [bookings])
@@ -115,6 +164,14 @@ export default function AdminDashboard() {
   const isStatusEmpty = !loading && statusDist.every((s) => !s.value || s.value === 0)
 
   /* ------------------------ RENDER ------------------------ */
+
+  if (error) {
+    return (
+      <Box sx={{ p: 3 }}>
+        <Alert severity="error">{error}</Alert>
+      </Box>
+    )
+  }
 
   return (
     <Box
@@ -177,10 +234,20 @@ export default function AdminDashboard() {
               display: 'flex',
               flexDirection: 'column',
               gap: 1.5,
-              background: `linear-gradient(135deg, ${alpha(
-                theme.palette.warning.main,
-                0.12
-              )}, ${alpha(theme.palette.warning.main, 0.04)})`,
+              background: (t) =>
+                `linear-gradient(135deg, ${alpha(
+                  theme.palette.warning.main,
+                  0.18
+                )}, ${alpha(theme.palette.warning.main, 0.04)})`,
+              borderRadius: 4,
+              border: `1.5px solid ${alpha(theme.palette.warning.main, 0.35)}`,
+              boxShadow: '0 18px 40px rgba(15,23,42,0.10)',
+              transition: '150ms',
+              '&:hover': {
+                borderColor: alpha(theme.palette.warning.main, 0.75),
+                boxShadow: '0 22px 55px rgba(15,23,42,0.18)',
+                transform: 'translateY(-2px)',
+              },
             }}
           >
             <Stack direction="row" alignItems="flex-start" spacing={1.5}>
@@ -205,12 +272,11 @@ export default function AdminDashboard() {
                 >
                   Ocupación estimada
                 </Typography>
-                <Typography variant="h5" fontWeight={700} sx={{ mt: 0.5 }}>
+                <Typography variant="h4" fontWeight={700} sx={{ mt: 0.5 }}>
                   {occupancy}%
                 </Typography>
               </Box>
             </Stack>
-
             <LinearProgress
               variant="determinate"
               value={occupancy}
@@ -219,9 +285,8 @@ export default function AdminDashboard() {
                 borderRadius: 999,
               }}
             />
-
             <Typography variant="caption" color="text.secondary">
-              Calculado según reservas del último mes.
+              Porcentaje de ocupación sobre la capacidad total.
             </Typography>
           </Paper>
         </Grid>
@@ -354,7 +419,7 @@ export default function AdminDashboard() {
             ) : (
               <List dense>
                 {upcoming.map((b) => {
-                  const name = typeof b.space === 'string' ? b.space : b.space.name
+                  const name = typeof b.space === 'string' ? b.space : (b.space as any).name
                   return (
                     <ListItem key={b._id}>
                       <ListItemIcon>
@@ -389,13 +454,14 @@ function KpiCard({ title, value, icon, color, caption }: any) {
         display: 'flex',
         flexDirection: 'column',
         gap: 1.5,
-        background: (t) => `linear-gradient(135deg, ${alpha(color, 0.14)}, ${alpha(color, 0.04)})`,
-        borderRadius: 3,
-        border: '1px solid rgba(148,163,184,0.35)',
-        transition: '150ms ease',
+        background: (t) => `linear-gradient(135deg, ${alpha(color, 0.18)}, ${alpha(color, 0.04)})`,
+        borderRadius: 4,
+        border: `1.5px solid ${alpha(color, 0.35)}`,
+        boxShadow: '0 18px 40px rgba(15,23,42,0.10)',
+        transition: '150ms',
         '&:hover': {
-          borderColor: 'rgba(129,140,248,0.75)',
-          boxShadow: '0 22px 55px rgba(15,23,42,0.12)',
+          borderColor: alpha(color, 0.75),
+          boxShadow: '0 22px 55px rgba(15,23,42,0.18)',
           transform: 'translateY(-2px)',
         },
       }}

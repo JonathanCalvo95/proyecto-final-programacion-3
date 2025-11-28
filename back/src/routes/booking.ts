@@ -14,23 +14,19 @@ function ensureAdmin(req: Request, res: Response, next: NextFunction) {
   if (isAdmin(req)) return next();
   res.status(403).send("Unauthorized");
 }
-function ensureOwnerOrAdmin(
+function ensureOwner(
   req: Request<{ id: string }>,
   res: Response,
   next: NextFunction
 ) {
   const bookingId = req.params.id;
   const userId = (req.user as any)?._id;
-
   Booking.findById(bookingId)
     .then((r) => {
       if (!r) return res.status(404).send("Reserva no encontrada");
-      // Si no es admin, validar propiedad
-      if (!isAdmin(req)) {
-        if (!userId) return res.status(401).send("Unauthenticated");
-        if (r.user.toString() !== userId?.toString())
-          return res.status(403).send("Unauthorized");
-      }
+      if (!userId) return res.status(401).send("Unauthenticated");
+      if (r.user.toString() !== userId?.toString())
+        return res.status(403).send("Unauthorized");
       (req as any).booking = r;
       next();
     })
@@ -77,8 +73,9 @@ router.get("/my", authentication, async (req, res, next) => {
   }
 });
 
-// Get booking by id
-router.get("/:id", authentication, ensureOwnerOrAdmin, async (req, res) => {
+// Get booking by id (solo dueño)
+// OJO: faltaba la barra en la ruta
+router.get("/:id", authentication, ensureOwner, async (req, res) => {
   res.send((req as any).booking);
 });
 
@@ -89,12 +86,20 @@ router.post("/", authentication, async (req, res, next) => {
     if (!spaceId || !start || !end)
       return res.status(400).send("Falta campos obligatorios");
 
+    // Solo clientes pueden generar reservas
+    const role = (req.user as any)?.role;
+    if (role === USER_ROLE.ADMIN) {
+      return res.status(403).send("Solo clientes pueden generar reservas");
+    }
+
     const parseDateOnly = (d: string) => new Date(`${d}T00:00:00`);
     const s = parseDateOnly(String(start));
     const endInclusive = parseDateOnly(String(end));
     if (isNaN(s.getTime()) || isNaN(endInclusive.getTime()))
       return res.status(400).send("Formato de fecha inválido");
-    const e = new Date(endInclusive.getTime() + 24 * 3600000); // exclusive end
+
+    // Guardamos end como límite EXCLUSIVO (día siguiente)
+    const e = new Date(endInclusive.getTime() + 24 * 3600000);
 
     if (s >= e)
       return res
@@ -128,7 +133,7 @@ router.post("/", authentication, async (req, res, next) => {
       start: s,
       end: e,
       amount,
-      status: BOOKING_STATUS.PENDING,
+      status: BOOKING_STATUS.PENDING_PAYMENT,
     });
     res.status(201).send(booking);
   } catch (err) {
@@ -136,47 +141,32 @@ router.post("/", authentication, async (req, res, next) => {
   }
 });
 
-// Cancel booking
+// Cancel booking (cliente)
 router.patch(
   "/:id/cancel",
   authentication,
-  ensureOwnerOrAdmin,
+  ensureOwner,
   async (req, res, next) => {
     try {
       const booking = (req as any).booking;
+      const role = (req.user as any)?.role;
+
+      if (role !== USER_ROLE.CLIENT)
+        return res
+          .status(403)
+          .json({ message: "Solo el cliente puede cancelar" });
+
       if (booking.status === BOOKING_STATUS.CANCELED)
         return res.status(400).json({ message: "Ya cancelada" });
+
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       if (booking.start <= today)
         return res.status(400).json({
           message: "No se puede cancelar una reserva pasada o en curso",
         });
-      booking.status = BOOKING_STATUS.CANCELED;
-      await booking.save();
-      res.json(booking);
-    } catch (e) {
-      next(e);
-    }
-  }
-);
 
-// PATCH /bookings/:id/confirm (solo admin)
-router.patch(
-  "/:id/confirm",
-  authentication,
-  ensureAdmin,
-  loadBooking,
-  async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      const booking = (req as any).booking;
-      if (booking.status === BOOKING_STATUS.CONFIRMED)
-        return res.status(400).json({ message: "Ya confirmada" });
-      if (booking.status === BOOKING_STATUS.CANCELED)
-        return res
-          .status(400)
-          .json({ message: "No se puede confirmar una reserva cancelada" });
-      booking.status = BOOKING_STATUS.CONFIRMED;
+      booking.status = BOOKING_STATUS.CANCELED;
       await booking.save();
       res.json(booking);
     } catch (e) {
@@ -189,20 +179,36 @@ router.patch(
 router.patch(
   "/:id/reschedule",
   authentication,
-  ensureOwnerOrAdmin,
+  ensureOwner,
   async (req: Request<{ id: string }>, res: Response, next: NextFunction) => {
     try {
       const booking = (req as any).booking;
+      const role = (req.user as any)?.role;
+
+      // Solo admin puede reprogramar
+      if (role !== USER_ROLE.ADMIN) {
+        return res.status(403).send("Solo el admin puede reprogramar reservas");
+      }
+
+      // No reprogramar canceladas
+      if (booking.status === BOOKING_STATUS.CANCELED) {
+        return res
+          .status(400)
+          .send("No se puede reprogramar una reserva cancelada");
+      }
+
       const { start, end } = req.body ?? {};
       if (!start || !end)
         return res.status(400).send("Faltan campos obligatorios");
 
       const parseDateOnly = (d: string) => new Date(`${d}T00:00:00`);
       const s = parseDateOnly(String(start));
-      const endInclusive = parseDateOnly(String(end));
-      if (isNaN(s.getTime()) || isNaN(endInclusive.getTime()))
+      const endDate = parseDateOnly(String(end));
+      if (isNaN(s.getTime()) || isNaN(endDate.getTime()))
         return res.status(400).send("Formato de fecha inválido");
-      const e = new Date(endInclusive.getTime() + 24 * 3600000);
+
+      // Interpret provided `end` as EXCLUSIVE boundary (no +1 day)
+      const e = new Date(endDate.getTime());
       if (s >= e)
         return res
           .status(400)

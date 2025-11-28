@@ -1,5 +1,6 @@
 import mongoose, { Schema, model, Document, Types } from "mongoose";
 import { SpaceType, SPACE_TYPES } from "../enums";
+import { AMENITIES } from "../enums/amenity";
 
 export interface ISpace extends Document {
   _id: Types.ObjectId;
@@ -29,7 +30,7 @@ const schema = new Schema<ISpace>(
     dailyRate: { type: Number, required: true, min: 0 },
     content: { type: String, default: "" },
     characteristics: { type: [String], default: [] },
-    amenities: { type: [String], default: [] },
+    amenities: { type: [String], enum: AMENITIES, default: [] },
     active: { type: Boolean, default: true, index: true },
     createdBy: {
       type: Schema.Types.ObjectId,
