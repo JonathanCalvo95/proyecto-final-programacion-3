@@ -1,6 +1,6 @@
 # 🧭 Sistema de Gestión de Espacios de Coworking (MERN + TypeScript)
 
-Monorepo que contiene **backend (back)** y **frontend (front)** de un sistema de reservas de espacios de coworking.  
+Monorepo que contiene **backend (back)** y **frontend (front)** de un sistema de reservas de espacios de coworking.
 Proyecto realizado para la materia **Programación 3 - 2025**.
 
 ---
@@ -81,7 +81,7 @@ npm run dev
 | ------ | ------------------------------ | ----------------------------- |
 | POST   | `/api/auth/login`              | Login y JWT                   |
 | GET    | `/api/auth/me`                 | Perfil del usuario            |
-| POST   | `/api/auth/logout`             | Cerrar sesion                 |
+| POST   | `/api/auth/logout`             | Cerrar sesión                 |
 | GET    | `/api/spaces`                  | Listar espacios activos       |
 | GET    | `/api/spaces/availability`     | IDs disponibles               |
 | POST   | `/api/spaces`                  | Crear espacio (admin)         |
@@ -89,10 +89,11 @@ npm run dev
 | DELETE | `/api/spaces`                  | Eliminar espacio (admin)      |
 | GET    | `/api/bookings`                | Listar reservas (admin)       |
 | GET    | `/api/bookings/my`             | Listar mis reservas           |
+| GET    | `/api/bookings/:id`            | Detalle de reserva            |
 | POST   | `/api/bookings`                | Reservar un espacio           |
 | PATCH  | `/api/bookings/:id/confirm`    | Confirmar reserva             |
-| PATCH  | `/api/bookings/:id/reschedule` | Reprogramar reserva           |
-| PATCH  | `/api/bookings/:id/cancel`     | Cancelar reserva              |
+| PATCH  | `/api/bookings/:id/reschedule` | Reprogramar reserva (admin)   |
+| PATCH  | `/api/bookings/:id/cancel`     | Cancelar reserva (cliente)    |
 | GET    | `/api/admin/metrics`           | Métricas (admin)              |
 | GET    | `/api/admin/top-spaces`        | Top reservas (admin)          |
 | GET    | `/api/ratings`                 | Listar calificaciones         |
@@ -107,32 +108,37 @@ npm run dev
 | `/login`          | Inicio de sesión            |
 | `/`               | Métricas (admin)            |
 | `/admin`          | Métricas (admin)            |
-| `/admin/spaces`   | Géstion de espacios (admin) |
-| `/admin/bookings` | Géstion de reservas (admin) |
-| `/spaces`         | Listar espacios             |
+| `/admin/spaces`   | Gestión de espacios (admin) |
+| `/admin/bookings` | Gestión de reservas (admin) |
+| `/admin/users`    | Gestión de usuarios (admin) |
+| `/spaces`         | Listar y reservar espacios  |
 | `/bookings`       | Listar mis reservas         |
+| `/bookings/:id`   | Detalle de reserva          |
 | `/ratings`        | Calificaciones              |
+
+---
 
 ---
 
 ## ✨ Funcionalidades principales
 
-- Login con JWT
-- Roles: administrador / cliente
+- Login con JWT y roles (admin/cliente)
+- Gestión de usuarios (admin)
 - CRUD de espacios (admin)
-- Reservas por día con validación de disponibilidad y bloqueo inmediato del espacio
-- Pago de reservas (módulo de tarjeta con validaciones básicas y confirmación automática)
-- Cancelación antes de la fecha
-- Métricas y top espacios más reservados
+- Reservas por día
+- Pago de reservas (tarjeta, validaciones y confirmación automática)
+- Cancelación y reprogramación de reservas
+- Métricas y ranking de espacios
 - Calificaciones con promedio por espacio
 - Log de errores (en `back/logs/`)
-- Ruteo con mínimo 5 páginas en el frontend
+- Seeds automáticos para datos de ejemplo
+- UI profesional y responsiva
 
 ---
 
 ## 🌱 Migración inicial (seed)
 
-Se ejecuta al correr la aplicacion si no existen datos en las colecciones.
+Se ejecuta automáticamente al iniciar la aplicación si no existen datos en las colecciones principales (usuarios, espacios, reservas, pagos, ratings).
 
 ---
 

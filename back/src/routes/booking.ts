@@ -7,13 +7,17 @@ import { BOOKING_STATUS } from "../enums/booking";
 
 const router = express.Router();
 
+/* ================= Helpers de roles / ownership ================= */
+
 function isAdmin(req: Request) {
   return (req.user as any)?.role === USER_ROLE.ADMIN;
 }
+
 function ensureAdmin(req: Request, res: Response, next: NextFunction) {
   if (isAdmin(req)) return next();
-  res.status(403).send("Unauthorized");
+  return res.status(403).send("Unauthorized");
 }
+
 function ensureOwner(
   req: Request<{ id: string }>,
   res: Response,
@@ -21,6 +25,7 @@ function ensureOwner(
 ) {
   const bookingId = req.params.id;
   const userId = (req.user as any)?._id;
+
   Booking.findById(bookingId)
     .then((r) => {
       if (!r) return res.status(404).send("Reserva no encontrada");
@@ -48,6 +53,8 @@ async function loadBooking(
   }
 }
 
+/* ================= Rutas ================= */
+
 // List all bookings (admin)
 router.get("/", authentication, ensureAdmin, async (_req, res, next) => {
   try {
@@ -60,7 +67,7 @@ router.get("/", authentication, ensureAdmin, async (_req, res, next) => {
   }
 });
 
-// List my bookings
+// List my bookings (cliente)
 router.get("/my", authentication, async (req, res, next) => {
   try {
     const userId = (req.user as any)?._id;
@@ -74,17 +81,16 @@ router.get("/my", authentication, async (req, res, next) => {
 });
 
 // Get booking by id (solo dueño)
-// OJO: faltaba la barra en la ruta
 router.get("/:id", authentication, ensureOwner, async (req, res) => {
   res.send((req as any).booking);
 });
 
-// Create booking
+// Create booking (solo clientes)
 router.post("/", authentication, async (req, res, next) => {
   try {
     const { spaceId, start, end } = req.body ?? {};
     if (!spaceId || !start || !end)
-      return res.status(400).send("Falta campos obligatorios");
+      return res.status(400).send("Faltan campos obligatorios");
 
     // Solo clientes pueden generar reservas
     const role = (req.user as any)?.role;
@@ -135,13 +141,14 @@ router.post("/", authentication, async (req, res, next) => {
       amount,
       status: BOOKING_STATUS.PENDING_PAYMENT,
     });
+
     res.status(201).send(booking);
   } catch (err) {
     next(err);
   }
 });
 
-// Cancel booking (cliente)
+// Cancel booking (cliente, solo dueño)
 router.patch(
   "/:id/cancel",
   authentication,
@@ -175,20 +182,15 @@ router.patch(
   }
 );
 
-// Reschedule booking
+// Reschedule booking (solo admin, cualquier reserva)
 router.patch(
   "/:id/reschedule",
   authentication,
-  ensureOwner,
+  ensureAdmin,
+  loadBooking,
   async (req: Request<{ id: string }>, res: Response, next: NextFunction) => {
     try {
-      const booking = (req as any).booking;
-      const role = (req.user as any)?.role;
-
-      // Solo admin puede reprogramar
-      if (role !== USER_ROLE.ADMIN) {
-        return res.status(403).send("Solo el admin puede reprogramar reservas");
-      }
+      const booking = (req as any).booking as any;
 
       // No reprogramar canceladas
       if (booking.status === BOOKING_STATUS.CANCELED) {
@@ -204,23 +206,26 @@ router.patch(
       const parseDateOnly = (d: string) => new Date(`${d}T00:00:00`);
       const s = parseDateOnly(String(start));
       const endDate = parseDateOnly(String(end));
+
       if (isNaN(s.getTime()) || isNaN(endDate.getTime()))
         return res.status(400).send("Formato de fecha inválido");
 
-      // Interpret provided `end` as EXCLUSIVE boundary (no +1 day)
       const e = new Date(endDate.getTime());
-      if (s >= e)
+
+      if (s >= e) {
         return res
           .status(400)
           .send("La fecha de inicio debe ser anterior a la fecha de fin");
+      }
 
-      // No se puede reprogramar si ya comenzó
+      // No se puede reprogramar si ya comenzó (o en curso)
       const today = new Date();
       today.setHours(0, 0, 0, 0);
-      if (booking.start <= today)
+      if (booking.start <= today) {
         return res
           .status(400)
           .send("No se puede reprogramar una reserva pasada o en curso");
+      }
 
       const space = await Space.findById(booking.space);
       if (!space) return res.status(404).send("Espacio no encontrado");
@@ -235,6 +240,7 @@ router.patch(
       });
       if (conflict) return res.status(409).send("Fecha no disponible");
 
+      // Actualizar fechas y monto
       booking.start = s;
       booking.end = e;
 

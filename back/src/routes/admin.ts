@@ -90,21 +90,21 @@ router.get(
   async (_req, res, next) => {
     try {
       const now = new Date();
-      const until = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000); // próximos 30 días
+      const since = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
       const totalSpaces = await Space.countDocuments({ active: true });
 
-      // Reservas "activas": cualquier reserva no cancelada
       const totalBookings = await Booking.countDocuments({
         status: { $ne: BOOKING_STATUS.CANCELED },
+        start: { $lt: now },
+        end: { $gt: since },
       });
 
-      // Para ocupación: solo no canceladas en la ventana futura
       const bookings = await Booking.find(
         {
           status: { $ne: BOOKING_STATUS.CANCELED },
-          start: { $lt: until },
-          end: { $gt: now },
+          start: { $lt: now },
+          end: { $gt: since },
         },
         { start: 1, end: 1 }
       ).lean();
@@ -113,12 +113,12 @@ router.get(
       for (const b of bookings) {
         reservedHours += bookedBusinessHoursInWindow(
           { start: (b as any).start, end: (b as any).end },
-          now,
-          until
+          since,
+          now
         );
       }
 
-      const workdays = countWorkdaysBetween(now, until);
+      const workdays = countWorkdaysBetween(since, now);
       const denom =
         totalSpaces > 0 ? totalSpaces * WORKING_HOURS_PER_DAY * workdays : 0;
 
@@ -139,10 +139,15 @@ router.get(
   requireAdmin,
   async (_req, res, next) => {
     try {
+      const now = new Date();
+      const since = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+
       const top = await Booking.aggregate([
         {
           $match: {
             status: { $ne: BOOKING_STATUS.CANCELED },
+            start: { $lt: now },
+            end: { $gt: since },
           },
         },
         { $group: { _id: "$space", count: { $sum: 1 } } },

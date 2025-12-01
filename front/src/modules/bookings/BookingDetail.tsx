@@ -7,7 +7,7 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import type { Booking } from '../../types/booking.types'
 import type { Payment } from '../../types/payment.types'
 import { getMyBookings, getBookings } from '../../services/bookings'
-import { getMyPayments } from '../../services/payments'
+import { getMyPayments, getAllPayments } from '../../services/payments'
 import { useAuth } from '../../context/AuthContext'
 import type { SpaceType } from '../../types/enums'
 import { SPACE_TYPE_META as TYPE_META } from '../../constants/spaceTypeMeta'
@@ -19,40 +19,55 @@ export default function BookingDetail() {
   const { user } = useAuth()
 
   const [booking, setBooking] = useState<Booking | null>(null)
+  const [payment, setPayment] = useState<Payment | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [payment, setPayment] = useState<Payment | null>(null)
 
   useEffect(() => {
     ;(async () => {
       try {
         setLoading(true)
+        setError(null)
+
         let bookings: Booking[] = []
+        let payments: Payment[] = []
 
         if (user?.role === 'admin') {
-          const all = await getBookings()
-          bookings = Array.isArray(all) ? all : []
+          const [allBookings, allPayments] = await Promise.all([getBookings(), getAllPayments()])
+          bookings = Array.isArray(allBookings) ? allBookings : []
+          payments = Array.isArray(allPayments) ? allPayments : []
         } else {
-          const mine = await getMyBookings()
-          bookings = Array.isArray(mine) ? mine : []
+          const [mineBookings, myPayments] = await Promise.all([getMyBookings(), getMyPayments()])
+          bookings = Array.isArray(mineBookings) ? mineBookings : []
+          payments = Array.isArray(myPayments) ? myPayments : []
         }
 
         const b = bookings.find((x) => x._id === id)
+
         if (!b) {
           setError('Reserva no encontrada')
-        } else {
-          setBooking(b)
-          try {
-            const payments = await getMyPayments()
-            const pmList = Array.isArray(payments) ? payments : []
-            const pm = pmList.find((p) => p.booking === b._id)
-            setPayment(pm || null)
-          } catch {
-            setPayment(null)
-          }
+          setBooking(null)
+          setPayment(null)
+          return
         }
+
+        setBooking(b)
+
+        const pm =
+          payments.find((p) => {
+            const bookingField: any = p.booking
+            const bookingId =
+              typeof bookingField === 'string'
+                ? bookingField
+                : bookingField?._id || bookingField?.id || String(bookingField ?? '')
+            return bookingId === b._id
+          }) || null
+
+        setPayment(pm)
       } catch (e: any) {
         setError(e?.response?.data?.message || e?.message || 'Error cargando reserva')
+        setBooking(null)
+        setPayment(null)
       } finally {
         setLoading(false)
       }
@@ -118,7 +133,6 @@ export default function BookingDetail() {
     )
   }
 
-  // Datos de espacio / usuario
   const spaceObj = typeof booking.space === 'object' ? (booking.space as any) : null
   const spaceName = spaceObj?.name ?? String(booking.space)
   const spaceType = (spaceObj?.type as SpaceType | undefined) ?? 'meeting_room'
@@ -133,10 +147,9 @@ export default function BookingDetail() {
         ? 'Vos'
         : String(booking.user)
 
-  // Fechas: misma convención que en el resto de la app
   const today = dayjs().startOf('day')
   const startDate = dayjs(booking.start)
-  const endDisplayDate = dayjs(booking.end).subtract(1, 'day').startOf('day') // fin inclusivo
+  const endDisplayDate = dayjs(booking.end).subtract(1, 'day').startOf('day')
 
   const start = startDate.format('DD/MM/YYYY')
   const end = endDisplayDate.format('DD/MM/YYYY')
@@ -148,7 +161,8 @@ export default function BookingDetail() {
   })
 
   const isCanceled = booking.status === 'canceled'
-  const isVencida = !isCanceled && !payment && endDisplayDate.isBefore(today)
+  const hasPayment = !!payment
+  const isVencida = !isCanceled && !hasPayment && endDisplayDate.isBefore(today)
 
   let statusLabel: string
   let statusColor: 'default' | 'success' | 'warning' | 'error'
@@ -156,34 +170,34 @@ export default function BookingDetail() {
   if (isCanceled) {
     statusLabel = 'Cancelada'
     statusColor = 'error'
+  } else if (hasPayment) {
+    statusLabel = 'Pagada'
+    statusColor = 'success'
   } else if (isVencida) {
     statusLabel = 'Vencida'
     statusColor = 'default'
-  } else if (payment) {
-    statusLabel = 'Pago registrado'
-    statusColor = 'success'
   } else {
     statusLabel = 'Pendiente de pago'
     statusColor = 'warning'
   }
 
-  const paymentBgColor = payment
-    ? alpha(theme.palette.success.main, 0.04)
+  const paymentBgColor = hasPayment
+    ? alpha(theme.palette.success.main, 0.05)
     : isCanceled
       ? alpha(theme.palette.error.main, 0.04)
       : isVencida
         ? alpha(theme.palette.grey[500], 0.06)
-        : alpha(theme.palette.warning.main, 0.04)
+        : alpha(theme.palette.warning.main, 0.045)
 
-  const paymentBorderColor = payment
-    ? alpha(theme.palette.success.main, 0.35)
+  const paymentBorderColor = hasPayment
+    ? alpha(theme.palette.success.main, 0.4)
     : isCanceled
-      ? alpha(theme.palette.error.main, 0.35)
+      ? alpha(theme.palette.error.main, 0.4)
       : isVencida
-        ? alpha(theme.palette.grey[500], 0.35)
-        : alpha(theme.palette.warning.main, 0.35)
+        ? alpha(theme.palette.grey[500], 0.4)
+        : alpha(theme.palette.warning.main, 0.4)
 
-  const paymentTitleColor = payment
+  const paymentTitleColor = hasPayment
     ? 'success.main'
     : isCanceled
       ? 'error.main'
@@ -194,10 +208,11 @@ export default function BookingDetail() {
   return (
     <Box
       sx={{
-        maxWidth: 960,
+        maxWidth: '1400px',
+        width: '100%',
         mx: 'auto',
         mt: { xs: 3, md: 6 },
-        px: { xs: 1.5, md: 0 },
+        px: { xs: 2, md: 2 },
       }}
     >
       {/* Header */}
@@ -228,11 +243,15 @@ export default function BookingDetail() {
 
       <Paper
         sx={{
-          p: { xs: 2.5, md: 3 },
-          borderRadius: 3,
-          boxShadow: 3,
-          border: `1px solid ${alpha(theme.palette.divider, 0.8)}`,
-          background: (t) => alpha(t.palette.background.paper, 0.98),
+          borderRadius: 5,
+          p: { xs: 3, md: 4 },
+          boxShadow: '0 25px 55px rgba(15,23,42,0.15)',
+          border: `1.5px solid ${alpha(theme.palette.primary.main, 0.18)}`,
+          background: () =>
+            `linear-gradient(135deg, ${alpha(theme.palette.background.paper, 0.98)}, ${alpha(
+              theme.palette.primary.main,
+              0.03
+            )})`,
         }}
       >
         {/* Cabecera de la tarjeta */}
@@ -275,7 +294,7 @@ export default function BookingDetail() {
 
         {/* Contenido principal */}
         <Stack direction={{ xs: 'column', md: 'row' }} spacing={3} alignItems="flex-start">
-          {/* Columna izquierda: datos de reserva */}
+          {/* Datos de reserva */}
           <Stack spacing={1.75} flex={1}>
             <Box>
               <Typography variant="caption" color="text.secondary">
@@ -296,12 +315,12 @@ export default function BookingDetail() {
             </Box>
           </Stack>
 
-          {/* Columna derecha: información de pago */}
+          {/* Información de pago */}
           <Box
             sx={{
               flex: 1,
               width: '100%',
-              borderRadius: 2.5,
+              borderRadius: 3,
               p: 2,
               backgroundColor: paymentBgColor,
               border: `1px solid ${paymentBorderColor}`,
@@ -311,15 +330,15 @@ export default function BookingDetail() {
               Estado de pago
             </Typography>
 
-            {payment ? (
+            {hasPayment ? (
               isCanceled ? (
                 <Stack spacing={0.75}>
                   <Typography variant="body2">
                     La reserva fue cancelada. Existe un pago registrado el{' '}
-                    <strong>{dayjs(payment.createdAt).format('DD/MM/YYYY')}</strong>.
+                    <strong>{dayjs(payment!.createdAt).format('DD/MM/YYYY')}</strong>.
                   </Typography>
                   <Typography variant="body2">
-                    Tarjeta <strong>{payment.brand}</strong> • ****{payment.last4}
+                    Tarjeta <strong>{payment!.brand}</strong> • ****{payment!.last4}
                   </Typography>
                   <Typography variant="caption" color="text.secondary">
                     La gestión de reembolsos se realiza por fuera de este panel.
@@ -328,10 +347,10 @@ export default function BookingDetail() {
               ) : (
                 <Stack spacing={0.75}>
                   <Typography variant="body2">
-                    Pago registrado el <strong>{dayjs(payment.createdAt).format('DD/MM/YYYY')}</strong>.
+                    Pago registrado el <strong>{dayjs(payment!.createdAt).format('DD/MM/YYYY')}</strong>.
                   </Typography>
                   <Typography variant="body2">
-                    Tarjeta <strong>{payment.brand}</strong> • ****{payment.last4}
+                    Tarjeta <strong>{payment!.brand}</strong> • ****{payment!.last4}
                   </Typography>
                 </Stack>
               )

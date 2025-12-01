@@ -9,34 +9,59 @@ function pick<T>(arr: readonly T[]): T {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
+function pickSome(candidates: any[], ratio: number): any[] {
+  if (!candidates.length) return [];
+  const chosen: any[] = [];
+  candidates.forEach((b) => {
+    if (Math.random() < ratio) chosen.push(b);
+  });
+  if (chosen.length === 0) {
+    chosen.push(candidates[0]);
+  }
+  return chosen;
+}
+
 export async function seedPaymentsIfEmpty(): Promise<number> {
   const existing = await Payment.countDocuments();
   if (existing > 0) return 0;
 
+  // Traemos todas las reservas no canceladas
   const bookings = await Booking.find({
     status: { $ne: BOOKING_STATUS.CANCELED },
   }).select("_id user amount start end status");
 
   if (bookings.length === 0) return 0;
 
-  // Nunca asignar pago a la reserva vencida ni a la pendiente de pago
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  const bookingsWithPayment = bookings.filter((b: any) => {
-    // Trabajamos solo sobre reservas pending_payment
-    if (b.status !== BOOKING_STATUS.PENDING_PAYMENT) return false;
+  // Solo las pendientes de pago
+  const pending = bookings.filter(
+    (b: any) => b.status === BOOKING_STATUS.PENDING_PAYMENT
+  );
 
-    const start = new Date(b.start);
+  if (pending.length === 0) return 0;
+
+  // Separar vencidas / futuras
+  const expired: any[] = [];
+  const future: any[] = [];
+
+  pending.forEach((b: any) => {
     const end = new Date(b.end);
-    const isVencida = end <= today; // reserva ya terminó
-    const isPendiente = start > today; // reserva futura
-
-    // solo queremos reservas "en ventana" (ni vencidas ni futuras)
-    return !isVencida && !isPendiente;
+    if (end <= today) {
+      expired.push(b);
+    } else {
+      future.push(b);
+    }
   });
 
-  if (bookingsWithPayment.length === 0) return 0;
+  const expiredToPay = pickSome(expired, 0.6);
+
+  const futureToPay = pickSome(future, 0.4);
+
+  const bookingsToPay = [...expiredToPay, ...futureToPay];
+
+  if (bookingsToPay.length === 0) return 0;
 
   const payload: {
     user: Types.ObjectId;
@@ -46,9 +71,10 @@ export async function seedPaymentsIfEmpty(): Promise<number> {
     brand: string;
   }[] = [];
 
-  bookingsWithPayment.forEach((b: any) => {
+  bookingsToPay.forEach((b: any) => {
     const last4 = String(1000 + Math.floor(Math.random() * 9000));
     const brand = pick(BRANDS);
+
     payload.push({
       user: b.user as Types.ObjectId,
       booking: b._id as Types.ObjectId,
@@ -61,7 +87,7 @@ export async function seedPaymentsIfEmpty(): Promise<number> {
   await Payment.insertMany(payload);
 
   // Marcar esas reservas como pagadas
-  const ids = bookingsWithPayment.map((b: any) => b._id);
+  const ids = bookingsToPay.map((b: any) => b._id);
   await Booking.updateMany(
     { _id: { $in: ids } },
     { $set: { status: BOOKING_STATUS.PAID } }

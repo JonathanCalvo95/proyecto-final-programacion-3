@@ -96,21 +96,27 @@ export default function Ratings() {
     return m
   }, [myRatings])
 
+  // Espacios que el cliente puede calificar: reservados y aún no calificados
+  const rateableSpaces = useMemo(
+    () =>
+      spaces.filter((s) => {
+        const id = String(s._id)
+        return bookedSpaceIds.has(id) && !ratedMap.has(id)
+      }),
+    [spaces, bookedSpaceIds, ratedMap]
+  )
+
+  // Resetear form cuando cambia el espacio
   useEffect(() => {
     if (!spaceId) {
       setScore(3)
       setComment('')
       return
     }
-    const existing = ratedMap.get(String(spaceId))
-    if (existing) {
-      setScore(existing.score ?? 3)
-      setComment(existing.comment ?? '')
-    } else {
-      setScore(3)
-      setComment('')
-    }
-  }, [spaceId, ratedMap])
+    // Como solo mostramos espacios no calificados, inicializamos siempre en 3 y sin comentario
+    setScore(3)
+    setComment('')
+  }, [spaceId])
 
   const kpis = useMemo(() => {
     const total = ratings.length
@@ -170,6 +176,12 @@ export default function Ratings() {
   async function submit() {
     if (!spaceId || !score) {
       setSnack({ open: true, msg: 'Completá espacio y puntaje', error: true })
+      return
+    }
+
+    // Defensa extra: por si por alguna razón llega un espacio ya calificado
+    if (ratedMap.has(String(spaceId))) {
+      setSnack({ open: true, msg: 'Ya calificaste este espacio.', error: true })
       return
     }
 
@@ -235,7 +247,7 @@ export default function Ratings() {
         </Typography>
       </Box>
 
-      {/* KPIs */}
+      {/* KPIs solo para admin */}
       {user?.role !== USER_ROLE.CLIENT && (
         <Grid container spacing={2} sx={{ mb: 3 }}>
           <Grid size={{ xs: 12, sm: 6, md: 3 }}>
@@ -403,19 +415,15 @@ export default function Ratings() {
               onChange={(e) => setSpaceId(e.target.value)}
               sx={{ minWidth: 300 }}
               size="small"
-              helperText="Solo se muestran espacios previamente reservados"
+              helperText="Solo se muestran espacios reservados y aún no calificados."
+              disabled={rateableSpaces.length === 0}
             >
               <MenuItem value="">Seleccionar</MenuItem>
-              {spaces
-                .filter((s) => bookedSpaceIds.has(String(s._id)))
-                .map((s) => (
-                  <MenuItem key={s._id} value={s._id}>
-                    {s.name}
-                    {ratedMap.has(String(s._id)) && (
-                      <Chip size="small" label="Ya calificado" color="primary" variant="outlined" sx={{ ml: 1 }} />
-                    )}
-                  </MenuItem>
-                ))}
+              {rateableSpaces.map((s) => (
+                <MenuItem key={s._id} value={s._id}>
+                  {s.name}
+                </MenuItem>
+              ))}
             </TextField>
 
             <Stack direction="row" spacing={1} alignItems="center">
@@ -431,9 +439,15 @@ export default function Ratings() {
               value={comment}
               onChange={(e) => setComment(e.target.value)}
               size="small"
+              disabled={rateableSpaces.length === 0}
             />
 
-            <Button variant="contained" onClick={submit} disabled={saving} sx={{ whiteSpace: 'nowrap' }}>
+            <Button
+              variant="contained"
+              onClick={submit}
+              disabled={saving || !spaceId || !score || rateableSpaces.length === 0}
+              sx={{ whiteSpace: 'nowrap' }}
+            >
               {saving ? 'Guardando...' : 'Calificar'}
             </Button>
           </Stack>
@@ -449,46 +463,60 @@ export default function Ratings() {
           borderRadius: 3,
         }}
       >
-        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems={{ xs: 'stretch', sm: 'center' }}>
-          <TextField
-            label="Buscar"
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            size="small"
-            sx={{ minWidth: 240 }}
-            placeholder="Espacio o usuario"
-          />
-          <TextField
-            label="Puntaje"
-            select
-            value={scoreFilter}
-            onChange={(e) => setScoreFilter(e.target.value)}
-            size="small"
-            sx={{ width: 160 }}
-          >
-            <MenuItem value="">Todos</MenuItem>
-            {[1, 2, 3, 4, 5].map((n) => (
-              <MenuItem key={n} value={String(n)}>
-                {n}
-              </MenuItem>
-            ))}
-          </TextField>
-          <TextField
-            label="Ordenar por"
-            select
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value as any)}
-            size="small"
-            sx={{ width: 200 }}
-          >
-            <MenuItem value="recent">Más recientes</MenuItem>
-            <MenuItem value="high">Más altas</MenuItem>
-            <MenuItem value="low">Más bajas</MenuItem>
-          </TextField>
-          <Box flex={1} />
-          <Chip label={`${filteredAll.length} total`} />
-          {user && <Chip color="primary" variant="outlined" label={`${filteredMine.length} mías`} />}
-          <Chip variant="outlined" label={`${filteredOthers.length} de otros`} />
+        <Stack
+          direction={{ xs: 'column', sm: 'row' }}
+          spacing={2}
+          alignItems={{ xs: 'stretch', sm: 'center' }}
+          justifyContent="space-between"
+        >
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems={{ xs: 'stretch', sm: 'center' }}>
+            <TextField
+              label="Buscar"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              size="small"
+              sx={{ minWidth: 240 }}
+              placeholder="Espacio o usuario"
+            />
+            <TextField
+              label="Puntaje"
+              select
+              value={scoreFilter}
+              onChange={(e) => setScoreFilter(e.target.value)}
+              size="small"
+              sx={{ width: 160 }}
+            >
+              <MenuItem value="">Todos</MenuItem>
+              {[1, 2, 3, 4, 5].map((n) => (
+                <MenuItem key={n} value={String(n)}>
+                  {n}
+                </MenuItem>
+              ))}
+            </TextField>
+            <TextField
+              label="Ordenar por"
+              select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as any)}
+              size="small"
+              sx={{ width: 200 }}
+            >
+              <MenuItem value="recent">Más recientes</MenuItem>
+              <MenuItem value="high">Más altas</MenuItem>
+              <MenuItem value="low">Más bajas</MenuItem>
+            </TextField>
+          </Stack>
+
+          {/* Chips de resumen solo tienen sentido si el usuario puede tener “mías” */}
+          <Stack direction="row" spacing={1} alignItems="center">
+            <Chip label={`${filteredAll.length} total`} />
+            {user?.role === USER_ROLE.CLIENT && (
+              <>
+                <Chip color="primary" variant="outlined" label={`${filteredMine.length} mías`} />
+                <Chip variant="outlined" label={`${filteredOthers.length} de otros`} />
+              </>
+            )}
+          </Stack>
         </Stack>
       </Paper>
 
@@ -514,7 +542,10 @@ export default function Ratings() {
                       borderRadius: 3,
                       border: `1.5px solid ${alpha(theme.palette.primary.main, 0.35)}`,
                       boxShadow: '0 18px 40px rgba(15,23,42,0.10)',
-                      background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.10)}, ${theme.palette.background.paper})`,
+                      background: `linear-gradient(135deg, ${alpha(
+                        theme.palette.primary.main,
+                        0.1
+                      )}, ${theme.palette.background.paper})`,
                       transition: '150ms',
                       '&:hover': {
                         borderColor: alpha(theme.palette.primary.main, 0.75),
@@ -607,7 +638,7 @@ export default function Ratings() {
                     borderRadius: 3,
                     border: `1.5px solid ${alpha(color, 0.35)}`,
                     boxShadow: '0 18px 40px rgba(15,23,42,0.10)',
-                    background: `linear-gradient(135deg, ${alpha(color, 0.10)}, ${theme.palette.background.paper})`,
+                    background: `linear-gradient(135deg, ${alpha(color, 0.1)}, ${theme.palette.background.paper})`,
                     transition: '150ms',
                     '&:hover': {
                       borderColor: alpha(color, 0.75),

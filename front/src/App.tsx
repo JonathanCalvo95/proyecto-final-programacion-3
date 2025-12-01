@@ -28,6 +28,9 @@ function Guard({ role }: GuardProps) {
   }
 
   if (role && user.role !== role) {
+    if (user.role === USER_ROLE.ADMIN) {
+      return <Navigate to="/admin" replace />
+    }
     return <Navigate to="/ratings" replace />
   }
 

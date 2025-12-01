@@ -25,6 +25,7 @@ import { getAllPayments } from '../../services/payments'
 
 import type { Booking } from '../../types/booking.types'
 import type { Payment } from '../../types/payment.types'
+import { BOOKING_STATUS, type BookingStatus } from '../../types/enums'
 
 type Metrics = {
   totalSpaces?: number
@@ -32,7 +33,28 @@ type Metrics = {
   occupancyRate?: number
 }
 
-type ChartBucketKey = 'pending' | 'confirmed' | 'canceled'
+type ChartBucketKey = BookingStatus
+
+/* =================== Helpers de estado =================== */
+
+function mapToChartStatus(b: Booking, payment?: Payment): BookingStatus {
+  const rawStatus = (b.status as unknown as string) || ''
+
+  if (rawStatus === BOOKING_STATUS.CANCELED || rawStatus.toLowerCase() === 'canceled') {
+    return BOOKING_STATUS.CANCELED
+  }
+
+  if (
+    rawStatus === BOOKING_STATUS.CONFIRMED ||
+    rawStatus.toLowerCase() === 'paid' ||
+    rawStatus.toLowerCase() === 'confirmada' ||
+    !!payment
+  ) {
+    return BOOKING_STATUS.CONFIRMED
+  }
+
+  return BOOKING_STATUS.PENDING
+}
 
 export default function AdminDashboard() {
   const theme = useTheme()
@@ -77,81 +99,117 @@ export default function AdminDashboard() {
     return m
   }, [payments])
 
-  /* ------------------------ INSIGHTS ------------------------ */
+  /* ------------------------ BOOKINGS ÚLTIMOS (últimos 30 días) ------------------------ */
+
+  const last30Bookings = useMemo(() => {
+    if (!bookings.length) return []
+    const today = dayjs().endOf('day')
+    const since = dayjs().subtract(30, 'day').startOf('day')
+
+    return bookings.filter((b) => {
+      const start = dayjs(b.start)
+      const end = dayjs(b.end)
+      return start.isBefore(today) && end.isAfter(since)
+    })
+  }, [bookings])
+
+  /* ------------------------ INSIGHTS (últimos 30 días) ------------------------ */
 
   const mostBookedSpace = useMemo(() => {
-    if (!bookings.length) return null
+    if (!last30Bookings.length) return null
     const map: Record<string, number> = {}
 
-    for (const b of bookings) {
+    for (const b of last30Bookings) {
       const name = typeof b.space === 'string' ? b.space : (b.space as any).name
       map[name] = (map[name] || 0) + 1
     }
 
     const sorted = Object.entries(map).sort((a, b) => b[1] - a[1])
     return sorted[0]
-  }, [bookings])
+  }, [last30Bookings])
 
   const busiestDay = useMemo(() => {
-    if (!bookings.length) return null
+    if (!last30Bookings.length) return null
     const map: Record<string, number> = {}
 
-    for (const b of bookings) {
+    for (const b of last30Bookings) {
       const start = dayjs(b.start).format('YYYY-MM-DD')
       map[start] = (map[start] || 0) + 1
     }
 
     const sorted = Object.entries(map).sort((a, b) => b[1] - a[1])
     return sorted[0]
-  }, [bookings])
+  }, [last30Bookings])
 
-  /* ------------------------ STATUS CHART ------------------------ */
+  const topUser = useMemo(() => {
+    if (!last30Bookings.length) return null
+    const map: Record<string, number> = {}
+
+    for (const b of last30Bookings) {
+      const user =
+        typeof b.user === 'string'
+          ? b.user
+          : `${(b.user as any)?.firstName || ''} ${(b.user as any)?.lastName || ''}`.trim()
+
+      map[user] = (map[user] || 0) + 1
+    }
+
+    const sorted = Object.entries(map).sort((a, b) => b[1] - a[1])
+    return sorted[0]
+  }, [last30Bookings])
+
+  const avgDuration = useMemo(() => {
+    if (!last30Bookings.length) return 0
+
+    const durations = last30Bookings.map((b) => dayjs(b.end).diff(dayjs(b.start), 'day'))
+
+    const avg = durations.reduce((a, b) => a + b, 0) / durations.length
+    return Math.round(avg * 10) / 10
+  }, [last30Bookings])
+
+  /* ------------------------ STATUS CHART (últimos 30 días) ------------------------ */
 
   const statusDist = useMemo(() => {
     const buckets: Record<ChartBucketKey, number> = {
-      pending: 0,
-      confirmed: 0,
-      canceled: 0,
+      [BOOKING_STATUS.PENDING]: 0,
+      [BOOKING_STATUS.CONFIRMED]: 0,
+      [BOOKING_STATUS.CANCELED]: 0,
     }
 
-    for (const b of bookings) {
-      const payment = paymentMap[b._id]
-      const isCanceled = b.status === 'canceled'
-      const isConfirmed = b.status === 'confirmed' || !!payment
-
-      if (isCanceled) buckets.canceled++
-      else if (isConfirmed) buckets.confirmed++
-      else buckets.pending++
+    for (const b of last30Bookings) {
+      const payment = paymentMap[String(b._id)]
+      const chartStatus = mapToChartStatus(b, payment)
+      buckets[chartStatus]++
     }
 
     return [
       {
-        id: 'pending',
-        label: 'Pendiente',
-        value: buckets.pending,
+        id: BOOKING_STATUS.PENDING,
+        label: 'Pendiente de pago',
+        value: buckets[BOOKING_STATUS.PENDING],
         color: theme.palette.warning.main,
       },
       {
-        id: 'confirmed',
-        label: 'Confirmada',
-        value: buckets.confirmed,
+        id: BOOKING_STATUS.CONFIRMED,
+        label: 'Pagada',
+        value: buckets[BOOKING_STATUS.CONFIRMED],
         color: theme.palette.success.main,
       },
       {
-        id: 'canceled',
+        id: BOOKING_STATUS.CANCELED,
         label: 'Cancelada',
-        value: buckets.canceled,
+        value: buckets[BOOKING_STATUS.CANCELED],
         color: theme.palette.error.main,
       },
     ]
-  }, [bookings, paymentMap, theme])
+  }, [last30Bookings, paymentMap, theme])
 
   /* ------------------------ Próximas reservas ------------------------ */
 
   const upcoming = useMemo(() => {
     const today = dayjs().startOf('day')
     return bookings
-      .filter((b) => b.status !== 'canceled' && dayjs(b.start).startOf('day').isAfter(today))
+      .filter((b) => b.status !== BOOKING_STATUS.CANCELED && dayjs(b.start).startOf('day').isAfter(today))
       .sort((a, b) => dayjs(a.start).diff(dayjs(b.start)))
       .slice(0, 6)
   }, [bookings])
@@ -159,6 +217,20 @@ export default function AdminDashboard() {
   const topNames = top.map((t) => t.name)
   const topCounts = top.map((t) => t.count)
   const occupancy = Math.round((metrics.occupancyRate || 0) * 100)
+
+  const barColors = useMemo(() => {
+    if (!topNames.length) return []
+
+    const palette = [
+      theme.palette.primary.main,
+      theme.palette.success.main,
+      theme.palette.info.main,
+      theme.palette.warning.main,
+      theme.palette.error.main,
+    ]
+
+    return topNames.map((_, idx) => palette[idx % palette.length])
+  }, [topNames, theme])
 
   const isTopEmpty = !loading && (!top || top.length === 0)
   const isStatusEmpty = !loading && statusDist.every((s) => !s.value || s.value === 0)
@@ -199,9 +271,8 @@ export default function AdminDashboard() {
               icon={<EventAvailable />}
               color="primary"
               variant="outlined"
-              label={`Reservas: ${metrics.totalBookings || 0}`}
+              label={`Reservas (últimos 30 días): ${metrics.totalBookings || 0}`}
             />
-            <Chip icon={<TrendingUp />} color="success" variant="outlined" label={`Ocupación: ${occupancy}%`} />
           </Stack>
         </Grid>
 
@@ -218,11 +289,11 @@ export default function AdminDashboard() {
 
         <Grid size={{ xs: 12, md: 4 }}>
           <KpiCard
-            title="Reservas activas"
+            title="Reservas (últimos 30 días)"
             value={metrics.totalBookings || 0}
             icon={<EventAvailable fontSize="small" />}
             color={theme.palette.success.main}
-            caption="Reservas futuras y en curso."
+            caption="Reservas no canceladas en los últimos 30 días."
           />
         </Grid>
 
@@ -234,7 +305,7 @@ export default function AdminDashboard() {
               display: 'flex',
               flexDirection: 'column',
               gap: 1.5,
-              background: (t) =>
+              background: () =>
                 `linear-gradient(135deg, ${alpha(
                   theme.palette.warning.main,
                   0.18
@@ -286,7 +357,7 @@ export default function AdminDashboard() {
               }}
             />
             <Typography variant="caption" color="text.secondary">
-              Porcentaje de ocupación sobre la capacidad total.
+              Porcentaje de ocupación sobre la capacidad total en los últimos 30 días.
             </Typography>
           </Paper>
         </Grid>
@@ -307,7 +378,7 @@ export default function AdminDashboard() {
                   Top espacios
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
-                  Los más reservados del mes.
+                  Los más reservados (últimos 30 días).
                 </Typography>
               </Box>
               <Chip size="small" label={`${top.length} espacios`} variant="outlined" />
@@ -324,8 +395,22 @@ export default function AdminDashboard() {
             ) : (
               <BarChart
                 height={320}
-                xAxis={[{ scaleType: 'band', data: topNames }]}
-                series={[{ data: topCounts, color: theme.palette.primary.main }]}
+                xAxis={[
+                  {
+                    scaleType: 'band',
+                    data: topNames,
+                    colorMap: {
+                      type: 'ordinal',
+                      values: topNames,
+                      colors: barColors,
+                    },
+                  },
+                ]}
+                series={[
+                  {
+                    data: topCounts,
+                  },
+                ]}
                 margin={{ left: 48, right: 16, top: 20, bottom: 40 }}
                 slotProps={{ legend: { hidden: true } }}
               />
@@ -339,7 +424,7 @@ export default function AdminDashboard() {
               Estados de reservas
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              Distribución general.
+              Distribución de reservas (últimos 30 días).
             </Typography>
 
             <Divider sx={{ my: 2 }} />
@@ -348,7 +433,7 @@ export default function AdminDashboard() {
               <LinearProgress />
             ) : isStatusEmpty ? (
               <Typography variant="body2" color="text.secondary">
-                No hay reservas registradas.
+                No hay reservas registradas en los últimos 30 días.
               </Typography>
             ) : (
               <PieChart
@@ -371,19 +456,25 @@ export default function AdminDashboard() {
         <Grid size={{ xs: 12, md: 4 }}>
           <Paper sx={{ p: 2.5, height: '100%', borderRadius: 3 }}>
             <Typography variant="h6" fontWeight={600}>
-              Insights
+              Insights (últimos 30 días)
             </Typography>
+
             <Divider sx={{ my: 1 }} />
+
             <List dense>
+              {/* Espacio más reservado */}
               <ListItem>
                 <ListItemIcon>
                   <TrendingUp color="primary" />
                 </ListItemIcon>
                 <ListItemText
-                  primary={mostBookedSpace ? `Espacio más reservado: ${mostBookedSpace[0]}` : 'Sin datos suficientes'}
+                  primary={
+                    mostBookedSpace ? `Espacio más reservado: ${mostBookedSpace[0]}` : 'No hay datos suficientes.'
+                  }
                 />
               </ListItem>
 
+              {/* Día más activo */}
               <ListItem>
                 <ListItemIcon>
                   <CalendarMonth color="secondary" />
@@ -392,8 +483,26 @@ export default function AdminDashboard() {
                   primary={
                     busiestDay
                       ? `Día con más reservas: ${dayjs(busiestDay[0]).format('DD/MM/YYYY')}`
-                      : 'Sin datos suficientes'
+                      : 'No hay datos suficientes.'
                   }
+                />
+              </ListItem>
+
+              {/* Usuario que más reservó */}
+              <ListItem>
+                <ListItemIcon>
+                  <MeetingRoom color="info" />
+                </ListItemIcon>
+                <ListItemText primary={topUser ? `Usuario más activo: ${topUser[0]}` : 'No hay datos suficientes.'} />
+              </ListItem>
+
+              {/* Duración promedio */}
+              <ListItem>
+                <ListItemIcon>
+                  <QueryStats color="warning" />
+                </ListItemIcon>
+                <ListItemText
+                  primary={avgDuration ? `Duración promedio: ${avgDuration} días` : 'No hay datos suficientes.'}
                 />
               </ListItem>
             </List>
@@ -407,7 +516,7 @@ export default function AdminDashboard() {
               Próximas reservas
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              Las reservas ordenadas por día.
+              Reservas futuras ordenadas por día.
             </Typography>
 
             <Divider sx={{ my: 2 }} />
@@ -454,7 +563,7 @@ function KpiCard({ title, value, icon, color, caption }: any) {
         display: 'flex',
         flexDirection: 'column',
         gap: 1.5,
-        background: (t) => `linear-gradient(135deg, ${alpha(color, 0.18)}, ${alpha(color, 0.04)})`,
+        background: () => `linear-gradient(135deg, ${alpha(color, 0.18)}, ${alpha(color, 0.04)})`,
         borderRadius: 4,
         border: `1.5px solid ${alpha(color, 0.35)}`,
         boxShadow: '0 18px 40px rgba(15,23,42,0.10)',

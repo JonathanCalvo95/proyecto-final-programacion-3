@@ -131,19 +131,23 @@ export default function AdminSpaces() {
     setSaving(true)
     setError(null)
     setDialogError(null)
-    // Validación local de campos requeridos
     const fe: Record<string, string> = {}
+
     if (!form.name.trim()) fe.name = 'Nombre requerido'
     if (!form.type) fe.type = 'Tipo requerido'
+
     const capNumber = Number(form.capacity)
     const rateNumber = Number(form.dailyRate)
+
     if (!form.capacity.trim() || isNaN(capNumber) || capNumber < 1) fe.capacity = 'Capacidad requerida'
     if (!form.dailyRate.trim() || isNaN(rateNumber) || rateNumber <= 0) fe.dailyRate = 'Tarifa requerida'
+
     if (Object.keys(fe).length) {
       setFormErrors(fe)
       setSaving(false)
       return
     }
+
     const payload = {
       name: form.name.trim(),
       type: form.type,
@@ -156,6 +160,7 @@ export default function AdminSpaces() {
         .filter(Boolean),
       amenities: form.amenities,
     }
+
     try {
       if (editing) {
         await updateSpace(editing._id, payload)
@@ -196,6 +201,7 @@ export default function AdminSpaces() {
 
   return (
     <>
+      {/* Header */}
       <Box sx={{ mb: 3 }}>
         <Stack
           direction={{ xs: 'column', sm: 'row' }}
@@ -227,6 +233,7 @@ export default function AdminSpaces() {
         </Stack>
       </Box>
 
+      {/* Loading / error */}
       {loading && (
         <Box display="flex" justifyContent="center" my={4}>
           <CircularProgress />
@@ -239,7 +246,7 @@ export default function AdminSpaces() {
       )}
 
       <Grid container spacing={2}>
-        {/* Filtros de búsqueda */}
+        {/* Filtros */}
         <Grid size={{ xs: 12 }}>
           <Paper variant="outlined" sx={{ p: 2, mb: 1.5, borderRadius: 3, overflow: 'visible' }}>
             <Stack
@@ -302,23 +309,34 @@ export default function AdminSpaces() {
             </Stack>
           </Paper>
         </Grid>
+
+        {/* Cards */}
         {filtered.map((s) => {
           const meta = TYPE_META[s.type as SpaceType] ?? TYPE_META.meeting_room
           const Icon = meta.Icon
+          const characteristics = Array.isArray((s as any).characteristics)
+            ? ((s as any).characteristics as string[])
+            : []
+          const amenities: string[] = Array.isArray((s as any).amenities) ? (s as any).amenities : []
+          const visibleAmenities = amenities.slice(0, 3)
+          const extraAmenities = Math.max(0, amenities.length - visibleAmenities.length)
+
           return (
             <Grid size={{ xs: 12, sm: 6, md: 4, lg: 3 }} key={s._id}>
               <Card
                 sx={{
                   borderRadius: 4,
                   height: '100%',
-                  boxShadow: '0 2px 12px rgba(30, 41, 59, 0.08)',
+                  boxShadow: '0 6px 24px rgba(15,23,42,0.10)',
                   background: (t) =>
-                    `linear-gradient(120deg, ${alpha(t.palette[meta.color].main, 0.1)}, ${t.palette.background.paper} 80%)`,
-                  border: `2px solid ${alpha(theme.palette[meta.color].main, 0.22)}`,
+                    `linear-gradient(120deg, ${alpha(t.palette[meta.color].main, 0.09)}, ${
+                      t.palette.background.paper
+                    } 70%)`,
+                  border: `1.5px solid ${alpha(theme.palette[meta.color].main, 0.26)}`,
                   transition: 'box-shadow 180ms, border-color 180ms, transform 180ms',
                   '&:hover': {
-                    boxShadow: '0 8px 32px rgba(30, 41, 59, 0.18)',
-                    borderColor: alpha(theme.palette[meta.color].main, 0.38),
+                    boxShadow: '0 12px 36px rgba(15,23,42,0.18)',
+                    borderColor: alpha(theme.palette[meta.color].main, 0.5),
                     transform: 'translateY(-2px)',
                   },
                 }}
@@ -327,11 +345,11 @@ export default function AdminSpaces() {
                   avatar={
                     <Avatar
                       sx={(t) => ({
-                        bgcolor: alpha(t.palette[meta.color].main, 0.22),
+                        bgcolor: alpha(t.palette[meta.color].main, 0.16),
                         color: t.palette[meta.color].dark,
                         width: 38,
                         height: 38,
-                        boxShadow: `0 2px 8px ${alpha(t.palette[meta.color].main, 0.1)}`,
+                        boxShadow: `0 2px 8px ${alpha(t.palette[meta.color].main, 0.16)}`,
                         '& .MuiSvgIcon-root': { fontSize: 22 },
                       })}
                     >
@@ -344,18 +362,19 @@ export default function AdminSpaces() {
                   subheader={meta.label}
                   sx={{ pb: 1, '& .MuiCardHeader-title': { fontWeight: 700 } }}
                 />
-                <CardContent sx={{ pt: 0, pb: 1.5 }}>
-                  <Stack direction="row" spacing={1.2} flexWrap="wrap" useFlexGap sx={{ mb: 1 }}>
+                <CardContent sx={{ pt: 0, pb: 1.75 }}>
+                  {/* Capacidad / tarifa */}
+                  <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mb: 1 }}>
                     <Chip
                       size="small"
                       label={`Capacidad: ${s.capacity}`}
                       sx={{
                         fontWeight: 500,
-                        bgcolor: alpha(theme.palette.primary.main, 0.16),
+                        bgcolor: alpha(theme.palette.primary.main, 0.1),
                         color: theme.palette.primary.dark,
                         border: 'none',
-                        px: 1.2,
-                        fontSize: 15,
+                        px: 1.1,
+                        fontSize: 13,
                       }}
                     />
                     <Chip
@@ -363,59 +382,92 @@ export default function AdminSpaces() {
                       label={`Tarifa: ${money((s as any).dailyRate || 0)}/día`}
                       sx={{
                         fontWeight: 500,
-                        bgcolor: alpha(theme.palette.success.main, 0.16),
+                        bgcolor: alpha(theme.palette.success.main, 0.1),
                         color: theme.palette.success.dark,
                         border: 'none',
-                        px: 1.2,
-                        fontSize: 15,
+                        px: 1.1,
+                        fontSize: 13,
                       }}
                     />
                   </Stack>
+
+                  {/* Descripción */}
                   {(s as any).content && (
-                    <Typography variant="body2" color="text.secondary" sx={{ mt: 1, mb: 0.5, fontSize: 15 }}>
-                      {String((s as any).content).length > 140
-                        ? `${String((s as any).content).slice(0, 140)}...`
+                    <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, mb: 0.75, fontSize: 14 }}>
+                      {String((s as any).content).length > 150
+                        ? `${String((s as any).content).slice(0, 150)}...`
                         : String((s as any).content)}
                     </Typography>
                   )}
-                  <Divider sx={{ my: 1.2, borderColor: alpha(theme.palette.divider, 0.18) }} />
-                  {/* Características */}
-                  {Array.isArray((s as any).characteristics) && (s as any).characteristics.length > 0 && (
-                    <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap sx={{ mb: 1 }}>
-                      {((s as any).characteristics as string[]).map((c, idx) => (
+
+                  <Divider sx={{ my: 1.1, borderColor: alpha(theme.palette.divider, 0.18) }} />
+
+                  {/* Características (máx 2 visibles) */}
+                  {characteristics.length > 0 && (
+                    <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap sx={{ mb: 0.75 }}>
+                      {characteristics.slice(0, 2).map((c, idx) => (
                         <Chip
                           key={idx}
                           size="small"
                           label={c}
                           sx={{
-                            bgcolor: alpha(theme.palette.secondary.main, 0.16),
-                            color: theme.palette.secondary.dark,
+                            bgcolor: alpha(theme.palette.grey[500], 0.08),
+                            color: theme.palette.text.secondary,
                             border: 'none',
                             px: 1.1,
+                            fontSize: 12,
                           }}
                         />
                       ))}
+                      {characteristics.length > 2 && (
+                        <Chip
+                          size="small"
+                          label={`+${characteristics.length - 2} más`}
+                          sx={{
+                            bgcolor: 'transparent',
+                            border: `1px dashed ${alpha(theme.palette.divider, 0.8)}`,
+                            color: theme.palette.text.secondary,
+                            fontSize: 12,
+                          }}
+                        />
+                      )}
                     </Stack>
                   )}
-                  {/* Amenities */}
-                  {Array.isArray((s as any).amenities) && (s as any).amenities.length > 0 && (
-                    <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap sx={{ mb: 1 }}>
-                      {((s as any).amenities as string[]).slice(0, 3).map((a, idx) => (
+
+                  {/* Amenities (máx 3 visibles) */}
+                  {visibleAmenities.length > 0 && (
+                    <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap sx={{ mb: 0.5 }}>
+                      {visibleAmenities.map((a, idx) => (
                         <Chip
                           key={idx}
                           size="small"
                           label={a}
                           sx={{
-                            bgcolor: alpha(theme.palette.info.main, 0.07),
+                            bgcolor: alpha(theme.palette.info.main, 0.06),
                             color: theme.palette.info.dark,
                             border: 'none',
-                            px: 1.1,
+                            px: 1.0,
+                            fontSize: 12,
                           }}
                         />
                       ))}
+                      {extraAmenities > 0 && (
+                        <Chip
+                          size="small"
+                          label={`+${extraAmenities}`}
+                          sx={{
+                            bgcolor: 'transparent',
+                            border: `1px dashed ${alpha(theme.palette.info.main, 0.4)}`,
+                            color: theme.palette.info.main,
+                            fontSize: 12,
+                          }}
+                        />
+                      )}
                     </Stack>
                   )}
-                  <Stack direction="row" justifyContent="flex-end" spacing={1.2} sx={{ mt: 0.5 }}>
+
+                  {/* Acciones */}
+                  <Stack direction="row" justifyContent="flex-end" spacing={1.2} sx={{ mt: 1 }}>
                     <Tooltip title="Editar">
                       <Button
                         size="small"
@@ -424,11 +476,11 @@ export default function AdminSpaces() {
                         sx={{
                           borderRadius: 2,
                           fontWeight: 500,
-                          bgcolor: alpha(theme.palette.primary.main, 0.07),
+                          bgcolor: alpha(theme.palette.primary.main, 0.05),
                           color: theme.palette.primary.dark,
-                          px: 2,
+                          px: 1.8,
                           '&:hover': {
-                            bgcolor: alpha(theme.palette.primary.main, 0.16),
+                            bgcolor: alpha(theme.palette.primary.main, 0.14),
                           },
                         }}
                       >
@@ -444,11 +496,11 @@ export default function AdminSpaces() {
                         sx={{
                           borderRadius: 2,
                           fontWeight: 500,
-                          bgcolor: alpha(theme.palette.error.main, 0.07),
+                          bgcolor: alpha(theme.palette.error.main, 0.04),
                           color: theme.palette.error.dark,
-                          px: 2,
+                          px: 1.8,
                           '&:hover': {
-                            bgcolor: alpha(theme.palette.error.main, 0.16),
+                            bgcolor: alpha(theme.palette.error.main, 0.12),
                           },
                         }}
                       >
@@ -461,6 +513,8 @@ export default function AdminSpaces() {
             </Grid>
           )
         })}
+
+        {/* Empty state */}
         {!loading && filtered.length === 0 && !error && (
           <Grid size={{ xs: 12 }}>
             <Paper
@@ -490,7 +544,7 @@ export default function AdminSpaces() {
                 Sin resultados
               </Typography>
               <Typography variant="body2" sx={{ mb: 2.5 }}>
-                Ajustá los filtros o crea un nuevo espacio.
+                Ajustá los filtros o creá un nuevo espacio.
               </Typography>
               <Button variant="contained" onClick={openNew}>
                 Nuevo espacio
@@ -500,7 +554,8 @@ export default function AdminSpaces() {
         )}
       </Grid>
 
-      <Dialog open={open} onClose={() => setOpen(false)} fullWidth maxWidth="sm">
+      {/* Diálogo alta/edición */}
+      <Dialog open={open} onClose={() => !saving && setOpen(false)} fullWidth maxWidth="sm">
         <DialogTitle>{editing ? 'Editar espacio' : 'Nuevo espacio'}</DialogTitle>
         <DialogContent sx={{ pt: 1 }}>
           {dialogError && (
@@ -508,6 +563,7 @@ export default function AdminSpaces() {
               {dialogError}
             </Alert>
           )}
+
           <TextField
             label="Nombre"
             fullWidth
@@ -518,6 +574,7 @@ export default function AdminSpaces() {
             error={!!formErrors.name}
             helperText={formErrors.name}
           />
+
           <TextField
             label="Tipo"
             select
@@ -528,10 +585,11 @@ export default function AdminSpaces() {
             error={!!formErrors.type}
             helperText={formErrors.type}
           >
-            <MenuItem value="meeting_room">{TYPE_META.meeting_room.label}</MenuItem>
-            <MenuItem value="desk">{TYPE_META.desk.label}</MenuItem>
-            <MenuItem value="private_office">{TYPE_META.private_office.label}</MenuItem>
+            <MenuItem value={SPACE_TYPE.MEETING_ROOM}>{TYPE_META.meeting_room.label}</MenuItem>
+            <MenuItem value={SPACE_TYPE.DESK}>{TYPE_META.desk.label}</MenuItem>
+            <MenuItem value={SPACE_TYPE.PRIVATE_OFFICE}>{TYPE_META.private_office.label}</MenuItem>
           </TextField>
+
           <TextField
             label="Capacidad"
             fullWidth
@@ -540,13 +598,14 @@ export default function AdminSpaces() {
             onChange={(e) => {
               const raw = e.target.value
               const digits = raw.replace(/\D+/g, '')
-              const cleaned = digits.replace(/^0+(\d)/, '$1') // remover ceros iniciales
+              const cleaned = digits.replace(/^0+(\d)/, '$1')
               setForm({ ...form, capacity: cleaned })
             }}
             inputProps={{ inputMode: 'numeric', pattern: '[0-9]*' }}
             error={!!formErrors.capacity}
             helperText={formErrors.capacity}
           />
+
           <TextField
             label="Tarifa por día"
             fullWidth
@@ -562,6 +621,7 @@ export default function AdminSpaces() {
             error={!!formErrors.dailyRate}
             helperText={formErrors.dailyRate}
           />
+
           <TextField
             label="Descripción / contenido"
             fullWidth
@@ -571,6 +631,7 @@ export default function AdminSpaces() {
             value={form.content}
             onChange={(e) => setForm({ ...form, content: e.target.value })}
           />
+
           <TextField
             label="Características (separadas por coma)"
             fullWidth
@@ -579,6 +640,7 @@ export default function AdminSpaces() {
             value={form.characteristicsInput}
             onChange={(e) => setForm({ ...form, characteristicsInput: e.target.value })}
           />
+
           <Autocomplete
             multiple
             options={AMENITIES}
@@ -611,6 +673,7 @@ export default function AdminSpaces() {
         </DialogActions>
       </Dialog>
 
+      {/* Diálogo eliminar */}
       <Dialog open={deleteOpen} onClose={() => !deleting && setDeleteOpen(false)} fullWidth maxWidth="xs">
         <DialogTitle>Eliminar espacio</DialogTitle>
         <DialogContent sx={{ pt: 1 }}>

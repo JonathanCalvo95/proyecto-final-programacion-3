@@ -67,10 +67,18 @@ export default function AdminBookings() {
   const [to, setTo] = useState<dayjs.Dayjs | null>(null)
 
   const [payments, setPayments] = useState<Payment[]>([])
+
   const paymentMap = useMemo(() => {
     const m: Record<string, Payment> = {}
     payments.forEach((p) => {
-      if (p.booking) m[p.booking] = p
+      if (!p.booking) return
+
+      const booking: any = p.booking
+      const bookingId = typeof booking === 'string' ? booking : booking._id || booking.id
+
+      if (bookingId) {
+        m[String(bookingId)] = p
+      }
     })
     return m
   }, [payments])
@@ -79,15 +87,16 @@ export default function AdminBookings() {
   const todayValue = today.valueOf()
 
   const deriveEstado = (b: Booking): BookingStateLabel => {
-    if (b.status === 'canceled') return 'Cancelada'
+    const status = (b as any).status
 
-    const payment = paymentMap[b._id]
+    if (status === 'canceled') return 'Cancelada'
+
+    const hasStatusPaid = status === 'paid' || status === 'PAID'
+    const payment = paymentMap[String((b as any)._id)]
     const endExclusive = dayjs(b.end)
 
-    if (!payment && endExclusive.valueOf() <= todayValue) {
-      return 'Vencida'
-    }
-    if (payment) return 'Pagada'
+    if (hasStatusPaid || payment) return 'Pagada'
+    if (endExclusive.valueOf() <= todayValue) return 'Vencida'
     return 'Pendiente de pago'
   }
 
@@ -102,13 +111,13 @@ export default function AdminBookings() {
     // Conflicto contra otras reservas mismo espacio (excluyendo canceladas y la propia)
     const conflicts = data.some((b) => {
       if (b._id === current._id) return false
-      if (b.status === 'canceled') return false
+      if ((b as any).status === 'canceled') return false
       const sameSpace =
         (typeof b.space === 'string' ? b.space : (b.space as any)?._id) ===
         (typeof current.space === 'string' ? current.space : (current.space as any)?._id)
       if (!sameSpace) return false
       const bs = dayjs(b.start)
-      const be = dayjs(b.end) // stored as exclusive
+      const be = dayjs(b.end)
       return bs.isBefore(e) && be.isAfter(s)
     })
     if (conflicts) return 'Las fechas seleccionadas se superponen con otra reserva.'
@@ -118,7 +127,7 @@ export default function AdminBookings() {
   // Se puede reprogramar si todavía no empezó y no está cancelada
   const canReschedule = useMemo(() => {
     if (!current) return false
-    return dayjs(current.start).startOf('day').isAfter(today) && current.status !== 'canceled'
+    return dayjs(current.start).startOf('day').isAfter(today) && (current as any).status !== 'canceled'
   }, [current, today])
 
   const canSaveReschedule = !!current && !!start && !!end && !rescheduleError && canReschedule
@@ -245,8 +254,8 @@ export default function AdminBookings() {
         case 'estado':
           return deriveEstado(a).localeCompare(deriveEstado(b)) * dir
         case 'payment': {
-          const ap = paymentMap[a._id] ? 1 : 0
-          const bp = paymentMap[b._id] ? 1 : 0
+          const ap = paymentMap[String((a as any)._id)] ? 1 : 0
+          const bp = paymentMap[String((b as any)._id)] ? 1 : 0
           return (ap - bp) * dir || aSpace.localeCompare(bSpace)
         }
         default:
@@ -364,6 +373,9 @@ export default function AdminBookings() {
             }}
             slotProps={{ textField: { size: 'small' } }}
           />
+
+          {/* contador de reservas visibles */}
+          <Chip label={`${filtered.length} reserva${filtered.length === 1 ? '' : 's'}`} sx={{ fontWeight: 500 }} />
 
           <Box flex={1} />
 
@@ -484,13 +496,13 @@ export default function AdminBookings() {
                     {(() => {
                       const est = deriveEstado(r)
                       const color = BOOKING_STATE_CHIP_COLOR[est]
-                      const payment = paymentMap[r._id]
+                      const payment = paymentMap[String((r as any)._id)]
                       if (payment) {
                         return (
                           <Tooltip
-                            title={`Pagada: ${payment.brand} ****${payment.last4} · ${dayjs(payment.createdAt).format(
-                              'DD/MM/YYYY'
-                            )}`}
+                            title={`Pagada: ${payment.brand} ****${payment.last4} · ${
+                              payment.createdAt ? dayjs(payment.createdAt).format('DD/MM/YYYY') : ''
+                            }`}
                           >
                             <Chip size="small" label={est} color={color} variant="outlined" />
                           </Tooltip>
@@ -521,7 +533,7 @@ export default function AdminBookings() {
                             size="small"
                             variant="outlined"
                             startIcon={<EditCalendar />}
-                            disabled={isPast || r.status === 'canceled'}
+                            disabled={isPast || (r as any).status === 'canceled'}
                             onClick={() => {
                               setCurrent(r)
                               setStart(dayjs(r.start))
@@ -610,7 +622,7 @@ export default function AdminBookings() {
           if (!current || !start || !end) return
           setRescheduleLoading(true)
           try {
-            await api.patch(`/bookings/${current._id}/reschedule`, {
+            await api.patch(`/bookings/${(current as any)._id}/reschedule`, {
               start: start.format('YYYY-MM-DD'),
               end: end.format('YYYY-MM-DD'),
             })
