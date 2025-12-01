@@ -55,6 +55,8 @@ export default function Bookings() {
   const [from, setFrom] = useState<dayjs.Dayjs | null>(null)
   const [to, setTo] = useState<dayjs.Dayjs | null>(null)
 
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
+
   const [payments, setPayments] = useState<Payment[]>([])
   const paymentMap = useMemo(() => {
     const m: Record<string, Payment> = {}
@@ -137,7 +139,7 @@ export default function Bookings() {
   const filtered = useMemo(() => {
     const ql = q.trim().toLowerCase()
 
-    return list.filter((r) => {
+    const filteredList = list.filter((r) => {
       if (estadoFilter && deriveEstado(r) !== estadoFilter) return false
 
       if (ql) {
@@ -158,7 +160,15 @@ export default function Bookings() {
 
       return true
     })
-  }, [list, q, estadoFilter, from, to, paymentMap, todayValue])
+
+    const sorted = [...filteredList].sort((a, b) => {
+      const da = dayjs(a.start).valueOf()
+      const db = dayjs(b.start).valueOf()
+      return sortDir === 'desc' ? db - da : da - db
+    })
+
+    return sorted
+  }, [list, q, estadoFilter, from, to, paymentMap, todayValue, sortDir])
 
   if (loading) {
     return (
@@ -246,6 +256,19 @@ export default function Bookings() {
             slotProps={{ textField: { size: 'small' } }}
           />
 
+          {/* Orden por fecha */}
+          <TextField
+            label="Orden"
+            select
+            size="small"
+            value={sortDir}
+            onChange={(e) => setSortDir(e.target.value as 'asc' | 'desc')}
+            sx={{ width: 220 }}
+          >
+            <MenuItem value="desc">Más recientes</MenuItem>
+            <MenuItem value="asc">Más antiguas</MenuItem>
+          </TextField>
+
           <Box flex={1} />
 
           <Button
@@ -255,6 +278,7 @@ export default function Bookings() {
               setEstadoFilter('')
               setFrom(null)
               setTo(null)
+              setSortDir('desc')
             }}
           >
             Limpiar filtros
